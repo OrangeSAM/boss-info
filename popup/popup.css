@@ -1,0 +1,177 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 320px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #f5f5f5;
+  color: #333;
+}
+
+.container {
+  padding: 16px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.status-bar {
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-around;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.status-item {
+  text-align: center;
+}
+
+.status-item .label {
+  display: block;
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.status-item .value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #00beaa;
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #00a899;
+}
+
+.btn-secondary {
+  background: #4a90e2;
+  color: #fff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #357abd;
+}
+
+.btn-outline {
+  background: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: #f9f9f9;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e0e0e0;
+  border-top-color: #00beaa;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.message {
+  padding: 12px;
+  margin-top: 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.message.success {
+  background: #e6f7e6;
+  color: #1e7e1e;
+}
+
+.message.error {
+  background: #fde8e8;
+  color: #c53030;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.footer {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 11px;
+  color: #999;
+}
+
+.footer a {
+  color: #00beaa;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+.footer .divider {
+  margin: 0 8px;
+}

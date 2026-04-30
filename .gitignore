@@ -1,0 +1,20 @@
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# 截图和临时文件
+*.png
+*.jpg
+*.jpeg
+*.json
+
+# 保存的网页
+*.html
+*_files/
+
+# Chrome扩展开发
+*.crx
+*.pem
