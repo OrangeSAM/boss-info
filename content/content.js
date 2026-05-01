@@ -96,18 +96,34 @@
   }
 
   /**
-   * 清理文本中的CSS样式代码和无关内容
+   * 清理文本中的CSS样式代码和反爬虫水印
    */
   function cleanText(text) {
     if (!text) return '';
 
+    let cleaned = text;
+
     // 移除CSS样式代码
-    let cleaned = text.replace(/\.[a-zA-Z0-9_-]+\{[^}]*\}/g, '');
-    // 移除"来自BOSS直聘"等水印文字
+    cleaned = cleaned.replace(/\.[a-zA-Z0-9_-]+\{[^}]*\}/g, '');
+
+    // 移除BOSS直聘反爬虫水印
     cleaned = cleaned.replace(/来自BOSS直聘/g, '');
     cleaned = cleaned.replace(/BOSS直聘/g, '');
+    cleaned = cleaned.replace(/来自BOSS/g, '');
     cleaned = cleaned.replace(/kanzhun/g, '');
+
+    // 循环移除所有"直聘"，直到没有为止
+    // 因为"直聘"被随机插入到任意中文字符之间
+    let prev;
+    do {
+      prev = cleaned;
+      // 移除被中文包围的"直聘"
+      cleaned = cleaned.replace(/直聘/g, '');
+    } while (cleaned !== prev);
+
+    // 移除boss（不区分大小写）
     cleaned = cleaned.replace(/boss/gi, '');
+
     // 移除多余空白
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
 
