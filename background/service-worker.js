@@ -120,10 +120,10 @@ async function startAnalysis(sendResponse) {
   }
 
   // 获取AI配置
-  const config = await chrome.storage.sync.get(['provider', 'apiKey', 'model', 'apiEndpoint']);
+  const config = await chrome.storage.sync.get(['apiEndpoint', 'apiKey', 'model']);
 
-  if (!config.apiKey) {
-    sendResponse({ success: false, error: '请先在设置中配置AI API Key' });
+  if (!config.apiEndpoint || !config.apiKey) {
+    sendResponse({ success: false, error: '请先在设置中配置API地址和Key' });
     return;
   }
 
