@@ -13,6 +13,8 @@
 
 # 保存的网页
 *.html
+!popup/popup.html
+!options/options.html
 *_files/
 
 # Chrome扩展开发

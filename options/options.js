@@ -68,6 +68,8 @@ const FOCUS_MODULES = {
 
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('settingsForm');
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('.tab-panel');
   const apiEndpointInput = document.getElementById('apiEndpoint');
   const apiKeyInput = document.getElementById('apiKey');
   const modelInput = document.getElementById('model');
@@ -222,6 +224,16 @@ document.addEventListener('DOMContentLoaded', () => {
       testBtn.disabled = false;
       testBtn.textContent = '检测';
     }
+  });
+
+  // Tab 切换
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabPanels.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelector(`.tab-panel[data-tab="${btn.dataset.tab}"]`).classList.add('active');
+    });
   });
 
   // 事件监听
