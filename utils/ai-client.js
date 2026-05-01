@@ -1,56 +1,48 @@
 /**
  * BOSS直聘 JD采集助手 - AI分析模块
- * 支持所有OpenAI兼容的API接口
+ * 支持 Anthropic 格式 API（如小米 MiMo）
  */
 
 /**
- * 分析提示词
+ * 默认分析提示词（当用户未在设置中配置时使用）
  */
-const ANALYSIS_PROMPT = `你是一位资深技术面试官和招聘分析师。请分析以下公司所有技术岗位的JD，提取关键信息。
+const DEFAULT_ANALYSIS_PROMPT = `你是一位资深技术面试官和招聘分析师。请分析以下公司的所有技术岗位JD。
 
-请按以下结构输出分析报告：
+## 分析要求
 
-## 1. 技术栈分析
+### 1. 公司业务分析（简要）
+- 这家公司是做什么的？核心产品是什么？
+- 技术团队规模大概多少人？
+- 在行业中的定位？
 
-### 前端技术
-- 框架（React/Vue/Angular等）
-- UI组件库
-- 构建工具
-- 状态管理
-- 其他前端技术
+### 2. 技术栈分析
+请从JD中提取并分析：
+- **前端技术栈**：框架、构建工具、状态管理、UI库等
+- **后端技术栈**：语言、框架、数据库、中间件等
+- **基础设施**：云服务、容器化、CI/CD等
 
-### 后端技术
-- 编程语言
-- 框架
-- 数据库（关系型/非关系型）
-- 中间件（消息队列/缓存等）
-- API设计风格
+### 3. 岗位要求分析
+- **学历要求**
+- **经验要求**
+- **薪资范围**
+- **加班情况**
+- **加分项**
 
-### 基础设施
-- 云服务商
-- 容器化/部署
-- CI/CD
-- 监控/日志
+### 4. 技术氛围评估
+从JD推断团队的技术文化和发展方向。
 
-## 2. 业务关注点
+### 5. 面试准备清单
+- 必须掌握的核心技术点
+- 可能的面试题目
+- 项目经验包装建议
 
-- 核心业务方向（从岗位JD推断）
-- 正在解决的技术挑战
-- 团队规模和结构
-- 未来技术规划（如有提及）
+### 6. 风险提示
+- 技术栈是否老旧
+- 薪资竞争力
+- 潜在的坑
 
-## 3. 面试准备建议
-
-### 必须掌握
-- 列出5-10个最重要的技术点
-
-### 建议深入
-- 列出3-5个加分技术方向
-
-### 可能的面试题目
-- 根据技术栈推测5-8个可能的面试问题
-
-请用Markdown格式输出，确保层次清晰、重点突出。`;
+## 输出格式
+使用Markdown格式输出，层次清晰，重点突出。`;
 
 /**
  * 格式化岗位数据用于分析
@@ -69,13 +61,96 @@ ${job.fullText || job.description || '暂无详细描述'}
 }
 
 /**
- * 调用AI API（OpenAI兼容接口）
- * @param {Object} config - 配置
- * @param {string} config.apiEndpoint - API端点地址
- * @param {string} config.apiKey - API密钥
- * @param {string} config.model - 模型名称
- * @param {Array} jobs - 岗位数据
- * @param {string} companyName - 公司名称
+ * 检测API格式（Anthropic 还是 OpenAI）
+ */
+function detectApiFormat(endpoint) {
+  if (endpoint.includes('/anthropic') || endpoint.includes('/messages')) {
+    return 'anthropic';
+  }
+  return 'openai';
+}
+
+/**
+ * 调用 Anthropic 格式 API（如小米 MiMo）
+ */
+async function callAnthropicApi(apiEndpoint, apiKey, model, userMessage) {
+  const response = await fetch(apiEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': apiKey
+    },
+    body: JSON.stringify({
+      model: model || 'mimo-v2.5',
+      max_tokens: 4096,
+      system: '你是一位资深技术面试官和招聘分析师。',
+      messages: [
+        { role: 'user', content: userMessage }
+      ],
+      stream: false
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(`API调用失败: ${error.error?.message || response.statusText}`);
+  }
+
+  const result = await response.json();
+
+  // Anthropic 格式响应
+  if (result.content && result.content.length > 0) {
+    return result.content[0].text;
+  }
+
+  throw new Error('API返回格式异常');
+}
+
+/**
+ * 调用 OpenAI 格式 API
+ */
+async function callOpenAiApi(apiEndpoint, apiKey, model, userMessage) {
+  const response = await fetch(apiEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model || 'gpt-4o',
+      messages: [
+        { role: 'user', content: userMessage }
+      ],
+      temperature: 0.3,
+      max_tokens: 4096
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(`API调用失败: ${error.error?.message || response.statusText}`);
+  }
+
+  const result = await response.json();
+
+  // OpenAI 格式响应
+  if (result.choices && result.choices.length > 0) {
+    return result.choices[0].message.content;
+  }
+
+  throw new Error('API返回格式异常');
+}
+
+/**
+ * 获取用户配置的分析提示词
+ */
+async function getAnalysisPrompt() {
+  const settings = await chrome.storage.sync.get('analysisPrompt');
+  return settings.analysisPrompt || DEFAULT_ANALYSIS_PROMPT;
+}
+
+/**
+ * 调用AI分析
  */
 async function analyzeWithAI(config, jobs, companyName) {
   const { apiEndpoint, apiKey, model } = config;
@@ -92,38 +167,82 @@ async function analyzeWithAI(config, jobs, companyName) {
     throw new Error('没有可分析的岗位数据');
   }
 
+  // 从设置中获取用户配置的 prompt
+  const analysisPrompt = await getAnalysisPrompt();
   const jobText = formatJobsForAnalysis(jobs);
-  const userMessage = `公司名称：${companyName}\n\n以下是该公司的所有技术岗位JD：\n\n${jobText}`;
+  const userMessage = `公司名称：${companyName}
 
-  const response = await fetch(apiEndpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: model || 'gpt-4o',
-      messages: [
-        { role: 'system', content: '你是一位资深技术面试官和招聘分析师。' },
-        { role: 'user', content: `${ANALYSIS_PROMPT}\n\n${userMessage}` }
-      ],
-      temperature: 0.3,
-      max_tokens: 4096
-    })
-  });
+以下是该公司的所有技术岗位JD：
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(`API调用失败: ${error.error?.message || response.statusText}`);
+${analysisPrompt}
+
+${jobText}`;
+
+  // 自动检测API格式
+  const apiFormat = detectApiFormat(apiEndpoint);
+  console.log(`[JD采集助手] 检测到API格式: ${apiFormat}`);
+
+  if (apiFormat === 'anthropic') {
+    return await callAnthropicApi(apiEndpoint, apiKey, model, userMessage);
+  } else {
+    return await callOpenAiApi(apiEndpoint, apiKey, model, userMessage);
   }
+}
 
-  const result = await response.json();
+/**
+ * 测试API连接
+ */
+async function testApiConnection(config) {
+  const { apiEndpoint, apiKey, model } = config;
+  const apiFormat = detectApiFormat(apiEndpoint);
 
-  if (result.choices && result.choices.length > 0) {
-    return result.choices[0].message.content;
+  if (apiFormat === 'anthropic') {
+    const response = await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': apiKey
+      },
+      body: JSON.stringify({
+        model: model || 'mimo-v2.5',
+        max_tokens: 5,
+        messages: [{ role: 'user', content: 'Hi' }]
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || response.statusText);
+    }
+
+    const result = await response.json();
+    if (!result.content) {
+      throw new Error('API返回格式异常');
+    }
+  } else {
+    const response = await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: model || 'gpt-4o',
+        messages: [{ role: 'user', content: 'Hi' }],
+        max_tokens: 5
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || response.statusText);
+    }
+
+    const result = await response.json();
+    if (!result.choices) {
+      throw new Error('API返回格式异常');
+    }
   }
-
-  throw new Error('API返回格式异常');
 }
 
 /**
@@ -159,4 +278,4 @@ ${analysis}
 `;
 }
 
-export { analyzeWithAI, generateMarkdownReport };
+export { analyzeWithAI, testApiConnection, generateMarkdownReport };
