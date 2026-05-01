@@ -3,7 +3,7 @@
  * 处理数据存储和AI分析
  */
 
-import { analyzeWithAI, generateMarkdownReport } from '../utils/ai-client.js';
+import { analyzeWithAI, testApiConnection, generateMarkdownReport } from '../utils/ai-client.js';
 
 // 初始化
 chrome.runtime.onInstalled.addListener(() => {
@@ -28,6 +28,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function handleMessage(request, sender, sendResponse) {
   try {
     switch (request.type) {
+      case 'TEST_API':
+        await testApiConnectionHandler(request, sendResponse);
+        break;
+
       case 'JOB_LIST_COLLECTED':
         await handleJobListCollected(request);
         sendResponse({ success: true });
@@ -59,6 +63,20 @@ async function handleMessage(request, sender, sendResponse) {
     }
   } catch (error) {
     console.error('[JD采集助手] 处理消息失败:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+/**
+ * 测试API连接
+ */
+async function testApiConnectionHandler(request, sendResponse) {
+  const { apiEndpoint, apiKey, model } = request;
+
+  try {
+    await testApiConnection({ apiEndpoint, apiKey, model });
+    sendResponse({ success: true });
+  } catch (error) {
     sendResponse({ success: false, error: error.message });
   }
 }
