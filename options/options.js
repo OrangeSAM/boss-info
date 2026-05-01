@@ -4,30 +4,11 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('settingsForm');
-  const providerSelect = document.getElementById('provider');
-  const apiKeyInput = document.getElementById('apiKey');
-  const modelSelect = document.getElementById('model');
   const apiEndpointInput = document.getElementById('apiEndpoint');
-  const apiEndpointGroup = document.getElementById('apiEndpointGroup');
-  const resetBtn = document.getElementById('resetBtn');
+  const apiKeyInput = document.getElementById('apiKey');
+  const modelInput = document.getElementById('model');
+  const testBtn = document.getElementById('testBtn');
   const messageEl = document.getElementById('message');
-
-  /**
-   * 模型选项配置
-   */
-  const modelOptions = {
-    claude: [
-      { value: 'claude-sonnet-4-20250514', text: 'Claude Sonnet 4 (推荐)' },
-      { value: 'claude-opus-4-20250514', text: 'Claude Opus 4' },
-      { value: 'claude-haiku-4-20250414', text: 'Claude Haiku 4' }
-    ],
-    openai: [
-      { value: 'gpt-4', text: 'GPT-4' },
-      { value: 'gpt-4-turbo', text: 'GPT-4 Turbo' },
-      { value: 'gpt-4o', text: 'GPT-4o (推荐)' },
-      { value: 'gpt-4o-mini', text: 'GPT-4o Mini' }
-    ]
-  };
 
   /**
    * 显示消息
@@ -36,57 +17,26 @@ document.addEventListener('DOMContentLoaded', () => {
     messageEl.textContent = text;
     messageEl.className = `message ${type}`;
     messageEl.classList.remove('hidden');
-
-    setTimeout(() => {
-      messageEl.classList.add('hidden');
-    }, 3000);
   }
 
-  /**
-   * 更新模型选项
-   */
-  function updateModelOptions(provider) {
-    const options = modelOptions[provider] || [];
-    modelSelect.innerHTML = options.map(opt =>
-      `<option value="${opt.value}">${opt.text}</option>`
-    ).join('');
-  }
-
-  /**
-   * 显示/隐藏自定义端点
-   */
-  function toggleApiEndpoint(provider) {
-    if (provider === 'openai') {
-      apiEndpointGroup.style.display = 'flex';
-    } else {
-      apiEndpointGroup.style.display = 'none';
-    }
+  function hideMessage() {
+    messageEl.classList.add('hidden');
   }
 
   /**
    * 加载保存的设置
    */
   async function loadSettings() {
-    const settings = await chrome.storage.sync.get([
-      'provider', 'apiKey', 'model', 'apiEndpoint'
-    ]);
-
-    if (settings.provider) {
-      providerSelect.value = settings.provider;
-      updateModelOptions(settings.provider);
-      toggleApiEndpoint(settings.provider);
-    }
-
-    if (settings.apiKey) {
-      apiKeyInput.value = settings.apiKey;
-    }
-
-    if (settings.model) {
-      modelSelect.value = settings.model;
-    }
+    const settings = await chrome.storage.sync.get(['apiEndpoint', 'apiKey', 'model']);
 
     if (settings.apiEndpoint) {
       apiEndpointInput.value = settings.apiEndpoint;
+    }
+    if (settings.apiKey) {
+      apiKeyInput.value = settings.apiKey;
+    }
+    if (settings.model) {
+      modelInput.value = settings.model;
     }
   }
 
@@ -97,15 +47,13 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
 
     const settings = {
-      provider: providerSelect.value,
+      apiEndpoint: apiEndpointInput.value.trim(),
       apiKey: apiKeyInput.value.trim(),
-      model: modelSelect.value,
-      apiEndpoint: apiEndpointInput.value.trim()
+      model: modelInput.value.trim()
     };
 
-    // 验证
-    if (!settings.apiKey) {
-      showMessage('请输入API Key', 'error');
+    if (!settings.apiEndpoint || !settings.apiKey || !settings.model) {
+      showMessage('请填写所有字段', 'error');
       return;
     }
 
@@ -114,29 +62,61 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * 重置设置
+   * 测试API连接
    */
-  async function resetSettings() {
-    await chrome.storage.sync.clear();
-    providerSelect.value = 'claude';
-    apiKeyInput.value = '';
-    updateModelOptions('claude');
-    toggleApiEndpoint('claude');
-    apiEndpointInput.value = '';
-    showMessage('设置已重置');
-  }
+  testBtn.addEventListener('click', async () => {
+    const endpoint = apiEndpointInput.value.trim();
+    const apiKey = apiKeyInput.value.trim();
+    const model = modelInput.value.trim();
+
+    if (!endpoint || !apiKey) {
+      showMessage('请先填写API地址和Key', 'error');
+      return;
+    }
+
+    testBtn.disabled = true;
+    testBtn.textContent = '检测中...';
+    showMessage('正在检测API连接...', 'testing');
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: model || 'gpt-4o',
+          messages: [
+            { role: 'user', content: 'Hi' }
+          ],
+          max_tokens: 5
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.choices && data.choices.length > 0) {
+          showMessage('API连接成功！', 'success');
+        } else {
+          showMessage('API返回格式异常', 'error');
+        }
+      } else {
+        const error = await response.json().catch(() => ({}));
+        const errMsg = error.error?.message || response.statusText || '未知错误';
+        showMessage(`API错误: ${errMsg}`, 'error');
+      }
+    } catch (error) {
+      showMessage(`连接失败: ${error.message}`, 'error');
+    } finally {
+      testBtn.disabled = false;
+      testBtn.textContent = '检测';
+    }
+  });
 
   // 事件监听
   form.addEventListener('submit', saveSettings);
 
-  providerSelect.addEventListener('change', (e) => {
-    const provider = e.target.value;
-    updateModelOptions(provider);
-    toggleApiEndpoint(provider);
-  });
-
-  resetBtn.addEventListener('click', resetSettings);
-
-  // 初始化：加载已有设置
+  // 初始化
   loadSettings();
 });
