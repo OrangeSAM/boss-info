@@ -136,7 +136,7 @@
   function extractCurrentJobDetail() {
     const detailPanel = document.querySelector('.job-detail-box');
     if (!detailPanel) {
-      return { description: '', fullText: '' };
+      return { description: '' };
     }
 
     // 提取职位描述
@@ -146,19 +146,15 @@
     // 清理描述内容
     description = cleanText(description);
 
-    // 提取完整文本
-    let fullText = detailPanel.textContent.trim();
-    fullText = cleanText(fullText);
-
-    // 尝试从fullText提取公司名
-    const companyMatch = fullText.match(/[一-龥]+科技[一-龥]*/);
+    // 尝试从面板提取公司名
+    const panelText = detailPanel.textContent;
+    const companyMatch = panelText.match(/[一-龥]+科技[一-龥]*/);
     if (companyMatch && !companyName) {
       companyName = companyMatch[0];
     }
 
     return {
-      description: description,
-      fullText: fullText
+      description: description
     };
   }
 
@@ -257,7 +253,7 @@
 
       // 提取详情
       const detail = extractCurrentJobDetail();
-      console.log(`[JD采集助手] 详情长度: ${detail.fullText.length}`);
+      console.log(`[JD采集助手] 详情长度: ${detail.description.length}`);
 
       // 存储
       collectedJobs.set(card.jobId, {
@@ -266,7 +262,6 @@
         salary: card.salary,
         tags: card.tags,
         description: detail.description,
-        fullText: detail.fullText,
         collectedAt: Date.now()
       });
 
@@ -274,7 +269,28 @@
       await sleep(500);
     }
 
+    // 每页采集完实时存储到 storage
+    if (collectedJobs.size > 0) {
+      try {
+        await chrome.storage.local.set({
+          jobs: Array.from(collectedJobs.values())
+        });
+        console.log(`[JD采集助手] 每页存储成功，共 ${collectedJobs.size} 个`);
+      } catch (e) {
+        console.error('[JD采集助手] 每页存储失败:', e);
+      }
+    }
+
     return collectedCount;
+  }
+
+  /**
+   * 检查当前是否在正确的采集页面（公司招聘岗位页）
+   */
+  function isOnValidCollectPage() {
+    const url = window.location.href;
+    // 匹配 /gongsi/job/ 路径
+    return /zhipin\.com\/gongsi\/job\//.test(url);
   }
 
   /**
@@ -283,6 +299,14 @@
   async function performCollection(callback) {
     if (isCollecting) {
       return { success: false, error: '正在采集中' };
+    }
+
+    // 检查是否在正确的页面
+    if (!isOnValidCollectPage()) {
+      return {
+        success: false,
+        error: '请先打开公司招聘岗位页面再采集'
+      };
     }
 
     isCollecting = true;
@@ -349,6 +373,19 @@
 
     console.log(`[JD采集助手] 采集完成: ${result.count} 个岗位`);
 
+    // 持久化到 storage.local
+    try {
+      const jobsData = Array.from(collectedJobs.values());
+      console.log(`[JD采集助手] 准备存储 ${jobsData.length} 个岗位到 storage.local`);
+      await chrome.storage.local.set({
+        jobs: jobsData,
+        companyName: companyName
+      });
+      console.log('[JD采集助手] storage.local 写入成功');
+    } catch (e) {
+      console.error('[JD采集助手] storage.local 写入失败:', e);
+    }
+
     // 通知Background
     chrome.runtime.sendMessage({
       type: 'JOB_LIST_COLLECTED',
@@ -370,6 +407,7 @@
   function clearJobs() {
     collectedJobs.clear();
     companyName = '';
+    chrome.storage.local.set({ jobs: [], companyName: '' });
   }
 
   // 消息监听
