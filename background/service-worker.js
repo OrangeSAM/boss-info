@@ -18,6 +18,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // 监听来自Content Script的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('[JD采集助手] Background 收到消息:', request.type || request.action);
   handleMessage(request, sender, sendResponse);
   return true;
 });
@@ -26,6 +27,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  * 处理消息
  */
 async function handleMessage(request, sender, sendResponse) {
+  console.log('[JD采集助手] Background 处理消息:', JSON.stringify(request).substring(0, 100));
   try {
     switch (request.type) {
       case 'TEST_API':
@@ -86,7 +88,9 @@ async function testApiConnectionHandler(request, sendResponse) {
  */
 async function handleJobListCollected(request) {
   const { count, companyName } = request;
+  console.log(`[JD采集助手] 收到采集完成消息: ${companyName}, ${count} 个岗位`);
   await chrome.storage.local.set({ companyName });
+  console.log('[JD采集助手] companyName 已存储');
   notifyPopup({
     type: 'STATUS_UPDATE',
     jobCount: count,
@@ -109,28 +113,9 @@ async function handleJobDetailCollected(request) {
  * 开始AI分析
  */
 async function startAnalysis(sendResponse) {
-  // 获取当前页面的岗位数据
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-  if (!tab) {
-    sendResponse({ success: false, error: '无法获取当前标签页' });
-    return;
-  }
-
-  // 从Content Script获取岗位数据
-  let jobs = [];
-  let companyName = '';
-
-  try {
-    const response = await chrome.tabs.sendMessage(tab.id, { action: 'getJobs' });
-    if (response.success) {
-      jobs = response.data;
-      companyName = response.companyName;
-    }
-  } catch (error) {
-    sendResponse({ success: false, error: '请确保在BOSS直聘页面使用' });
-    return;
-  }
+  // 从 storage.local 读取岗位数据
+  const { jobs = [] } = await chrome.storage.local.get('jobs');
+  const { companyName = '' } = await chrome.storage.local.get('companyName');
 
   if (jobs.length === 0) {
     sendResponse({ success: false, error: '没有采集到岗位数据，请先采集' });
@@ -185,34 +170,14 @@ async function startAnalysis(sendResponse) {
  */
 async function getExportData(exportType, sendResponse) {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-    if (!tab) {
-      sendResponse({ success: false, error: '无法获取当前标签页' });
-      return;
-    }
-
-    let jobs = [];
-
-    try {
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getJobs' });
-      if (response.success) {
-        jobs = response.data;
-      }
-    } catch (error) {
-      sendResponse({ success: false, error: '请确保在BOSS直聘页面使用' });
-      return;
-    }
+    // 从 storage.local 读取岗位数据
+    const { jobs = [] } = await chrome.storage.local.get('jobs');
+    const { companyName = '未知公司' } = await chrome.storage.local.get('companyName');
 
     if (jobs.length === 0) {
       sendResponse({ success: false, error: '没有可导出的数据，请先采集' });
       return;
     }
-
-    // 从页面标题获取公司名
-    const pageTitle = tab.title || '';
-    const companyMatch = pageTitle.match(/^(.+?)的招聘/);
-    const companyName = companyMatch ? companyMatch[1] : '未知公司';
 
     if (exportType === 'report') {
       // 导出AI分析报告
@@ -264,25 +229,17 @@ async function getExportData(exportType, sendResponse) {
  * 获取状态
  */
 async function getStatus(sendResponse) {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-  if (!tab) {
-    sendResponse({
-      success: true,
-      data: { jobCount: 0, companyName: '', hasAnalysis: false }
-    });
-    return;
-  }
-
   try {
-    const response = await chrome.tabs.sendMessage(tab.id, { action: 'getStatus' });
+    // 从 storage.local 读取数据
+    const { jobs = [] } = await chrome.storage.local.get('jobs');
+    const { companyName = '' } = await chrome.storage.local.get('companyName');
     const { analyses = [] } = await chrome.storage.local.get('analyses');
 
     sendResponse({
       success: true,
       data: {
-        jobCount: response.data?.count || 0,
-        companyName: response.data?.companyName || '',
+        jobCount: jobs.length,
+        companyName: companyName,
         hasAnalysis: analyses.length > 0
       }
     });
@@ -308,7 +265,7 @@ async function clearData(sendResponse) {
     }
   }
 
-  await chrome.storage.local.set({ analyses: [] });
+  await chrome.storage.local.set({ jobs: [], companyName: '', analyses: [] });
 
   notifyPopup({
     type: 'STATUS_UPDATE',
