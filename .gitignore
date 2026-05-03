@@ -5,17 +5,9 @@
 # OS
 .DS_Store
 
-# 截图和临时文件
-*.png
-*.jpg
-*.jpeg
-*.json
-
-# 保存的网页
-*.html
-!popup/popup.html
-!options/options.html
-*_files/
+# 截图和临时文件（非扩展相关）
+downloads/
+screenshots/
 
 # Chrome扩展开发
 *.crx
