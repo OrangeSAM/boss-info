@@ -1,5 +1,5 @@
 /**
- * BOSS直聘 JD采集助手 - 设置页脚本
+ * BOSS直聘 JD采集助手 - 设置页脚本（多 Provider + 多公司）
  */
 
 // 岗位方向对应的预设 prompt
@@ -66,145 +66,224 @@ const FOCUS_MODULES = {
 - 跳槽建议`
 };
 
+/**
+ * Markdown → HTML（基于 marked 库）
+ */
+function renderMarkdown(text) {
+  if (!text) return '';
+  return marked.parse(text);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  const apiForm = document.getElementById('settingsForm');
-  const promptForm = document.getElementById('promptForm');
+  // ========== 通用 DOM ==========
+
   const tabBtns = document.querySelectorAll('.tab-btn');
   const tabPanels = document.querySelectorAll('.tab-panel');
+  const messageEl = document.getElementById('message');
+  const promptContent = document.getElementById('promptContent');
+
+  // ========== 分析设置 DOM ==========
+
+  const promptForm = document.getElementById('promptForm');
+  const jobTypeSelect = document.getElementById('jobType');
+  const customRequirementsInput = document.getElementById('customRequirements');
+
+  // ========== Provider DOM ==========
+
+  const providerList = document.getElementById('providerList');
+  const providerEmpty = document.getElementById('providerEmpty');
+  const settingsForm = document.getElementById('settingsForm');
+  const providerNameInput = document.getElementById('providerName');
   const apiEndpointInput = document.getElementById('apiEndpoint');
   const apiKeyInput = document.getElementById('apiKey');
   const modelInput = document.getElementById('model');
-  const jobTypeSelect = document.getElementById('jobType');
-  const customRequirementsInput = document.getElementById('customRequirements');
   const testBtn = document.getElementById('testBtn');
-  const togglePromptBtn = document.getElementById('togglePrompt');
-  const promptPreview = document.getElementById('promptPreview');
-  const promptContent = document.getElementById('promptContent');
-  const messageEl = document.getElementById('message');
+  const addProviderBtn = document.getElementById('addProviderBtn');
+  const deleteProviderBtn = document.getElementById('deleteProviderBtn');
 
-  /**
-   * 显示消息
-   */
+  // ========== 公司 DOM ==========
+
+  const companyList = document.getElementById('companyList');
+  const companyListEmpty = document.getElementById('companyListEmpty');
+  const companyEmpty = document.getElementById('companyEmpty');
+  const companyDetail = document.getElementById('companyDetail');
+  const dataCompany = document.getElementById('dataCompany');
+  const dataCount = document.getElementById('dataCount');
+  const jobListItems = document.getElementById('jobListItems');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  const exportReportBtn = document.getElementById('exportReportBtn');
+  const exportRawBtn = document.getElementById('exportRawBtn');
+  const deleteCompanyBtn = document.getElementById('deleteCompanyBtn');
+
+  // ========== 报告 DOM ==========
+
+  const reportEmpty = document.getElementById('reportEmpty');
+  const reportContent = document.getElementById('reportContent');
+  const reportCompany = document.getElementById('reportCompany');
+  const reportBody = document.getElementById('reportBody');
+  const exportReportBtn2 = document.getElementById('exportReportBtn2');
+
+  // ========== 状态 ==========
+
+  let providers = [];
+  let activeProviderId = null;
+  let companies = [];
+  let activeCompanyId = null;
+
+  // ========== 消息 ==========
+
   function showMessage(text, type = 'success') {
     messageEl.textContent = text;
     messageEl.className = `message ${type}`;
     messageEl.classList.remove('hidden');
-
     if (type !== 'error') {
       setTimeout(() => messageEl.classList.add('hidden'), 3000);
     }
   }
 
-  /**
-   * 生成当前配置的 prompt
-   */
-  function generatePrompt() {
-    const jobType = jobTypeSelect.value;
-    const customRequirements = customRequirementsInput.value.trim();
+  // ========== Tab 切换 ==========
 
-    // 获取选中的关注点
-    const focusCheckboxes = document.querySelectorAll('input[name="focus"]:checked');
-    const focusPoints = Array.from(focusCheckboxes).map(cb => cb.value);
-
-    // 基础 prompt
-    let prompt = JOB_TYPE_PROMPTS[jobType] || JOB_TYPE_PROMPTS.other;
-
-    // 添加关注点模块
-    prompt += '\n\n请按以下结构输出分析报告：';
-    focusPoints.forEach(point => {
-      if (FOCUS_MODULES[point]) {
-        prompt += FOCUS_MODULES[point];
-      }
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabPanels.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelector(`.tab-panel[data-tab="${btn.dataset.tab}"]`).classList.add('active');
     });
+  });
 
-    // 添加自定义需求
-    if (customRequirements) {
-      prompt += `\n\n## 用户额外需求\n${customRequirements}`;
+  // ================================================================
+  //  Provider 逻辑
+  // ================================================================
+
+  function generateId(prefix) {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  }
+
+  async function loadProviders() {
+    const data = await chrome.storage.sync.get(['providers', 'activeProviderId']);
+    providers = data.providers || [];
+    activeProviderId = data.activeProviderId || null;
+
+    renderProviderList();
+
+    if (providers.length > 0) {
+      const target = providers.find(p => p.id === activeProviderId) || providers[0];
+      selectProvider(target.id);
+    } else {
+      showProviderEmpty();
     }
-
-    prompt += '\n\n请用Markdown格式输出，层次清晰，重点突出。';
-
-    return prompt;
   }
 
-  /**
-   * 更新 prompt 预览
-   */
-  function updatePromptPreview() {
-    const prompt = generatePrompt();
-    promptContent.textContent = prompt;
-  }
-
-  /**
-   * 加载保存的设置
-   */
-  async function loadSettings() {
-    const settings = await chrome.storage.sync.get([
-      'apiEndpoint', 'apiKey', 'model',
-      'jobType', 'focusPoints', 'customRequirements'
-    ]);
-
-    if (settings.apiEndpoint) apiEndpointInput.value = settings.apiEndpoint;
-    if (settings.apiKey) apiKeyInput.value = settings.apiKey;
-    if (settings.model) modelInput.value = settings.model;
-    if (settings.jobType) jobTypeSelect.value = settings.jobType;
-    if (settings.customRequirements) customRequirementsInput.value = settings.customRequirements;
-
-    // 恢复关注点选择
-    if (settings.focusPoints) {
-      document.querySelectorAll('input[name="focus"]').forEach(cb => {
-        cb.checked = settings.focusPoints.includes(cb.value);
-      });
-    }
-
-    updatePromptPreview();
-  }
-
-  /**
-   * 保存设置
-   */
-  async function saveSettings(e) {
-    e.preventDefault();
-
-    const focusCheckboxes = document.querySelectorAll('input[name="focus"]:checked');
-    const focusPoints = Array.from(focusCheckboxes).map(cb => cb.value);
-
-    const settings = {
-      apiEndpoint: apiEndpointInput.value.trim(),
-      apiKey: apiKeyInput.value.trim(),
-      model: modelInput.value.trim(),
-      jobType: jobTypeSelect.value,
-      focusPoints: focusPoints,
-      customRequirements: customRequirementsInput.value.trim(),
-      // 保存生成的 prompt
-      analysisPrompt: generatePrompt()
-    };
-
-    if (!settings.apiEndpoint || !settings.apiKey || !settings.model) {
-      showMessage('请填写API配置', 'error');
+  function renderProviderList() {
+    if (providers.length === 0) {
+      providerList.innerHTML = '';
       return;
     }
 
-    await chrome.storage.sync.set(settings);
-    showMessage('设置已保存');
+    providerList.innerHTML = providers.map(p => `
+      <div class="split-list-item${p.id === activeProviderId ? ' active' : ''}" data-id="${p.id}">
+        <div class="item-name">${p.name || '未命名'}</div>
+        <div class="item-meta">${p.model || '-'}</div>
+      </div>
+    `).join('');
+
+    providerList.querySelectorAll('.split-list-item').forEach(item => {
+      item.addEventListener('click', () => selectProvider(item.dataset.id));
+    });
   }
 
-  /**
-   * 测试API连接
-   */
+  function selectProvider(id) {
+    activeProviderId = id;
+    const provider = providers.find(p => p.id === id);
+    if (!provider) return;
+
+    providerEmpty.classList.add('hidden');
+    settingsForm.classList.remove('hidden');
+
+    providerNameInput.value = provider.name || '';
+    apiEndpointInput.value = provider.endpoint || '';
+    apiKeyInput.value = provider.key || '';
+    modelInput.value = provider.model || '';
+
+    renderProviderList();
+    chrome.storage.sync.set({ activeProviderId: id });
+  }
+
+  function showProviderEmpty() {
+    settingsForm.classList.add('hidden');
+    providerEmpty.classList.remove('hidden');
+    activeProviderId = null;
+    renderProviderList();
+  }
+
+  addProviderBtn.addEventListener('click', async () => {
+    const newProvider = {
+      id: generateId('p'),
+      name: '新 Provider',
+      endpoint: '',
+      key: '',
+      model: ''
+    };
+    providers.push(newProvider);
+    await chrome.storage.sync.set({ providers });
+    selectProvider(newProvider.id);
+    providerNameInput.focus();
+    providerNameInput.select();
+  });
+
+  settingsForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    if (!activeProviderId) return;
+
+    const provider = providers.find(p => p.id === activeProviderId);
+    if (!provider) return;
+
+    provider.name = providerNameInput.value.trim();
+    provider.endpoint = apiEndpointInput.value.trim();
+    provider.key = apiKeyInput.value.trim();
+    provider.model = modelInput.value.trim();
+
+    if (!provider.endpoint || !provider.key || !provider.model) {
+      showMessage('请填写完整的 API 配置', 'error');
+      return;
+    }
+
+    await chrome.storage.sync.set({ providers, activeProviderId });
+    renderProviderList();
+    showMessage('Provider 已保存');
+  });
+
+  deleteProviderBtn.addEventListener('click', async () => {
+    if (!activeProviderId) return;
+    if (!confirm('确定要删除这个 Provider 吗？')) return;
+
+    providers = providers.filter(p => p.id !== activeProviderId);
+    activeProviderId = providers.length > 0 ? providers[0].id : null;
+
+    await chrome.storage.sync.set({ providers, activeProviderId });
+
+    if (activeProviderId) {
+      selectProvider(activeProviderId);
+    } else {
+      showProviderEmpty();
+    }
+    showMessage('已删除');
+  });
+
   testBtn.addEventListener('click', async () => {
     const endpoint = apiEndpointInput.value.trim();
     const apiKey = apiKeyInput.value.trim();
     const model = modelInput.value.trim();
 
     if (!endpoint || !apiKey) {
-      showMessage('请先填写API地址和Key', 'error');
+      showMessage('请先填写 API 地址和 Key', 'error');
       return;
     }
 
     testBtn.disabled = true;
     testBtn.textContent = '检测中...';
-    showMessage('正在检测...', 'testing');
 
     try {
       const response = await chrome.runtime.sendMessage({
@@ -215,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (response.success) {
-        showMessage('API连接成功！', 'success');
+        showMessage('API 连接成功！', 'success');
       } else {
         showMessage(response.error || '检测失败', 'error');
       }
@@ -227,90 +306,152 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Tab 切换
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabBtns.forEach(b => b.classList.remove('active'));
-      tabPanels.forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.querySelector(`.tab-panel[data-tab="${btn.dataset.tab}"]`).classList.add('active');
+  // ================================================================
+  //  分析设置逻辑
+  // ================================================================
+
+  function generatePrompt() {
+    const jobType = jobTypeSelect.value;
+    const customRequirements = customRequirementsInput.value.trim();
+    const focusCheckboxes = document.querySelectorAll('input[name="focus"]:checked');
+    const focusPoints = Array.from(focusCheckboxes).map(cb => cb.value);
+
+    let prompt = JOB_TYPE_PROMPTS[jobType] || JOB_TYPE_PROMPTS.other;
+
+    prompt += '\n\n请按以下结构输出分析报告：';
+    focusPoints.forEach(point => {
+      if (FOCUS_MODULES[point]) {
+        prompt += FOCUS_MODULES[point];
+      }
     });
+
+    if (customRequirements) {
+      prompt += `\n\n## 用户额外需求\n${customRequirements}`;
+    }
+
+    prompt += '\n\n请用Markdown格式输出，层次清晰，重点突出。';
+
+    return prompt;
+  }
+
+  function updatePromptPreview() {
+    promptContent.textContent = generatePrompt();
+  }
+
+  async function loadPromptSettings() {
+    const settings = await chrome.storage.sync.get([
+      'jobType', 'focusPoints', 'customRequirements'
+    ]);
+
+    if (settings.jobType) jobTypeSelect.value = settings.jobType;
+    if (settings.customRequirements) customRequirementsInput.value = settings.customRequirements;
+
+    if (settings.focusPoints) {
+      document.querySelectorAll('input[name="focus"]').forEach(cb => {
+        cb.checked = settings.focusPoints.includes(cb.value);
+      });
+    }
+
+    updatePromptPreview();
+  }
+
+  promptForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const focusCheckboxes = document.querySelectorAll('input[name="focus"]:checked');
+    const focusPoints = Array.from(focusCheckboxes).map(cb => cb.value);
+
+    await chrome.storage.sync.set({
+      jobType: jobTypeSelect.value,
+      focusPoints,
+      customRequirements: customRequirementsInput.value.trim(),
+      analysisPrompt: generatePrompt()
+    });
+
+    showMessage('分析设置已保存');
   });
 
-  // 事件监听
-  apiForm.addEventListener('submit', saveSettings);
-  promptForm.addEventListener('submit', saveSettings);
-
-  togglePromptBtn.addEventListener('click', () => {
-    promptPreview.classList.toggle('show');
-  });
-
-  // 岗位方向变化时更新预览
   jobTypeSelect.addEventListener('change', updatePromptPreview);
-
-  // 关注点变化时更新预览
   document.querySelectorAll('input[name="focus"]').forEach(cb => {
     cb.addEventListener('change', updatePromptPreview);
   });
-
-  // 自定义需求变化时更新预览
   customRequirementsInput.addEventListener('input', updatePromptPreview);
 
-  // 初始化
-  loadSettings();
+  // ================================================================
+  //  公司数据逻辑
+  // ================================================================
 
-  // ========== 数据 Tab 相关 ==========
+  async function loadCompanies() {
+    const data = await chrome.storage.local.get(['companies', 'activeCompanyId']);
+    companies = data.companies || [];
+    activeCompanyId = data.activeCompanyId || null;
 
-  const dataCompany = document.getElementById('dataCompany');
-  const dataCount = document.getElementById('dataCount');
-  const jobListItems = document.getElementById('jobListItems');
-  const emptyState = document.getElementById('emptyState');
-  const analyzeBtn = document.getElementById('analyzeBtn');
-  const exportReportBtn = document.getElementById('exportReportBtn');
-  const exportRawBtn = document.getElementById('exportRawBtn');
-  const clearDataBtn = document.getElementById('clearDataBtn');
-  const analysisResult = document.getElementById('analysisResult');
-  const analysisContent = document.getElementById('analysisContent');
+    renderCompanyList();
 
-  let currentJobs = [];
-
-  /**
-   * 加载已采集数据
-   */
-  async function loadJobData() {
-    const { jobs = [] } = await chrome.storage.local.get('jobs');
-    const { companyName = '' } = await chrome.storage.local.get('companyName');
-    const { analyses = [] } = await chrome.storage.local.get('analyses');
-
-    currentJobs = jobs;
-    renderJobList(jobs, companyName);
-
-    // 更新按钮状态
-    analyzeBtn.disabled = jobs.length === 0;
-    exportRawBtn.disabled = jobs.length === 0;
-    exportReportBtn.disabled = analyses.length === 0;
-
-    // 显示最新的分析结果
-    if (analyses.length > 0) {
-      const latest = analyses[analyses.length - 1];
-      showAnalysisResult(latest.analysis);
+    if (companies.length > 0) {
+      const target = companies.find(c => c.id === activeCompanyId) || companies[0];
+      selectCompany(target.id);
+    } else {
+      showCompanyEmpty();
     }
   }
 
-  /**
-   * 渲染岗位列表
-   */
-  function renderJobList(jobs, companyName) {
-    dataCompany.textContent = companyName || '未采集';
-    dataCount.textContent = `共 ${jobs.length} 个岗位`;
+  function renderCompanyList() {
+    companyListEmpty.classList.toggle('hidden', companies.length > 0);
 
-    if (jobs.length === 0) {
-      emptyState.classList.remove('hidden');
-      jobListItems.innerHTML = '';
+    // 移除旧的动态 items
+    companyList.querySelectorAll('.split-list-item').forEach(item => item.remove());
+
+    companies.forEach(c => {
+      const div = document.createElement('div');
+      div.className = `split-list-item${c.id === activeCompanyId ? ' active' : ''}`;
+      div.dataset.id = c.id;
+      div.innerHTML = `
+        <div class="item-name">${c.name || '未知公司'}</div>
+        <div class="item-meta">${c.jobs.length} 个岗位</div>
+      `;
+      div.addEventListener('click', () => selectCompany(c.id));
+      companyList.appendChild(div);
+    });
+  }
+
+  function selectCompany(id) {
+    activeCompanyId = id;
+    const company = companies.find(c => c.id === id);
+    if (!company) return;
+
+    companyEmpty.classList.add('hidden');
+    companyDetail.classList.remove('hidden');
+
+    dataCompany.textContent = company.name || '未知公司';
+    dataCount.textContent = `共 ${company.jobs.length} 个岗位`;
+
+    renderJobList(company.jobs);
+
+    analyzeBtn.disabled = company.jobs.length === 0;
+    exportRawBtn.disabled = company.jobs.length === 0;
+    exportReportBtn.disabled = !company.analyses || company.analyses.length === 0;
+
+    updateReportTab();
+
+    renderCompanyList();
+    chrome.storage.local.set({ activeCompanyId: id });
+  }
+
+  function showCompanyEmpty() {
+    companyDetail.classList.add('hidden');
+    companyEmpty.classList.remove('hidden');
+    activeCompanyId = null;
+    showAnalysisResult(null);
+    renderCompanyList();
+  }
+
+  function renderJobList(jobs) {
+    if (!jobs || jobs.length === 0) {
+      jobListItems.innerHTML = '<div class="empty-state"><p>暂无岗位数据</p></div>';
       return;
     }
 
-    emptyState.classList.add('hidden');
     jobListItems.innerHTML = jobs.map((job, index) => `
       <div class="job-item" data-index="${index}">
         <div class="job-header">
@@ -326,7 +467,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `).join('');
 
-    // 添加点击展开/收起
     jobListItems.querySelectorAll('.job-item').forEach(item => {
       item.addEventListener('click', () => {
         item.classList.toggle('expanded');
@@ -335,43 +475,78 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /**
-   * 显示分析结果
-   */
-  function showAnalysisResult(analysis) {
-    if (!analysis) return;
-    analysisContent.innerHTML = `<div class="markdown">${analysis.replace(/\n/g, '<br>')}</div>`;
-    analysisResult.classList.remove('hidden');
+  function showAnalysisResult(analysis, companyName) {
+    if (!analysis) {
+      reportEmpty.classList.remove('hidden');
+      reportContent.classList.add('hidden');
+      return;
+    }
+    reportEmpty.classList.add('hidden');
+    reportContent.classList.remove('hidden');
+    reportCompany.textContent = companyName || '';
+    reportBody.innerHTML = renderMarkdown(analysis);
   }
 
-  /**
-   * 下载文件
-   */
-  function downloadFile(content, filename, mimeType) {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  function updateReportTab() {
+    const company = companies.find(c => c.id === activeCompanyId);
+    if (company && company.analyses && company.analyses.length > 0) {
+      const latest = company.analyses[company.analyses.length - 1];
+      showAnalysisResult(latest.analysis, company.name);
+    } else {
+      showAnalysisResult(null);
+    }
   }
 
-  /**
-   * AI 分析
-   */
+  deleteCompanyBtn.addEventListener('click', async () => {
+    if (!activeCompanyId) return;
+    const company = companies.find(c => c.id === activeCompanyId);
+    if (!confirm(`确定要删除"${company?.name || '该公司'}"的所有数据吗？`)) return;
+
+    companies = companies.filter(c => c.id !== activeCompanyId);
+    activeCompanyId = companies.length > 0 ? companies[0].id : null;
+
+    await chrome.storage.local.set({ companies, activeCompanyId });
+
+    if (activeCompanyId) {
+      selectCompany(activeCompanyId);
+    } else {
+      showCompanyEmpty();
+    }
+    showMessage('已删除');
+  });
+
+  // ================================================================
+  //  AI 分析 & 导出
+  // ================================================================
+
   analyzeBtn.addEventListener('click', async () => {
+    if (!activeCompanyId) return;
+
     analyzeBtn.disabled = true;
     analyzeBtn.textContent = '分析中...';
 
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'START_ANALYSIS' });
+      const response = await chrome.runtime.sendMessage({
+        type: 'START_ANALYSIS',
+        companyId: activeCompanyId
+      });
 
       if (response.success) {
-        showAnalysisResult(response.analysis);
         exportReportBtn.disabled = false;
+
+        // 更新内存中的 analyses
+        const company = companies.find(c => c.id === activeCompanyId);
+        if (company) {
+          if (!company.analyses) company.analyses = [];
+          company.analyses.push({
+            id: Date.now(),
+            jobCount: company.jobs.length,
+            analysis: response.analysis,
+            createdAt: Date.now()
+          });
+          showAnalysisResult(response.analysis, company.name);
+        }
+
         showMessage('分析完成！');
       } else {
         showMessage(response.error || '分析失败', 'error');
@@ -384,12 +559,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  /**
-   * 导出报告
-   */
-  exportReportBtn.addEventListener('click', async () => {
+  function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  exportReportBtn.addEventListener('click', exportReport);
+  exportReportBtn2.addEventListener('click', exportReport);
+
+  async function exportReport() {
+    if (!activeCompanyId) return;
+
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'GET_EXPORT_DATA', exportType: 'report' });
+      const response = await chrome.runtime.sendMessage({
+        type: 'GET_EXPORT_DATA',
+        exportType: 'report',
+        companyId: activeCompanyId
+      });
 
       if (response.success) {
         const { markdown, companyName } = response.data;
@@ -402,14 +595,17 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       showMessage('导出失败: ' + error.message, 'error');
     }
-  });
+  }
 
-  /**
-   * 导出原始数据
-   */
   exportRawBtn.addEventListener('click', async () => {
+    if (!activeCompanyId) return;
+
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'GET_EXPORT_DATA', exportType: 'raw' });
+      const response = await chrome.runtime.sendMessage({
+        type: 'GET_EXPORT_DATA',
+        exportType: 'raw',
+        companyId: activeCompanyId
+      });
 
       if (response.success) {
         const { jsonData, companyName } = response.data;
@@ -424,22 +620,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  /**
-   * 清空数据
-   */
-  clearDataBtn.addEventListener('click', async () => {
-    if (!confirm('确定要清空所有采集数据吗？')) return;
+  // ================================================================
+  //  初始化
+  // ================================================================
 
-    await chrome.storage.local.set({ jobs: [], companyName: '', analyses: [] });
-    currentJobs = [];
-    renderJobList([], '');
-    analysisResult.classList.add('hidden');
-    analyzeBtn.disabled = true;
-    exportReportBtn.disabled = true;
-    exportRawBtn.disabled = true;
-    showMessage('数据已清空');
-  });
-
-  // 初始化加载数据
-  loadJobData();
+  loadProviders();
+  loadPromptSettings();
+  loadCompanies();
 });

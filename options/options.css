@@ -12,7 +12,8 @@ body {
 }
 
 .container {
-  max-width: 560px;
+  width: 85%;
+  max-width: 1200px;
   margin: 40px auto;
   padding: 24px;
   background: #fff;
@@ -191,23 +192,17 @@ body {
   background: #f8f8f8;
   border: 1px solid #eee;
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
-  max-height: 200px;
+  padding: 16px;
+  max-height: calc(100vh - 200px);
   overflow-y: auto;
-  display: none;
-}
-
-.prompt-preview.show {
-  display: block;
 }
 
 .prompt-preview pre {
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.6;
   white-space: pre-wrap;
-  word-break: break-all;
-  color: #555;
+  word-break: break-word;
+  color: #333;
 }
 
 .btn-small {
@@ -217,6 +212,34 @@ body {
 
 .form-actions {
   margin-top: 8px;
+}
+
+/* ========== 分析设置 Tab 左右布局 ========== */
+
+.prompt-editor {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.prompt-config .section:last-of-type {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.prompt-config .form-actions {
+  margin-top: 24px;
+}
+
+.prompt-preview-panel {
+  position: sticky;
+  top: 20px;
+}
+
+.prompt-preview-panel .section-title {
+  margin-bottom: 12px;
 }
 
 .btn {
@@ -403,27 +426,224 @@ body {
   flex: 1;
 }
 
-.analysis-result {
-  margin-top: 24px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #eee;
-}
-
-.analysis-result h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 12px;
-}
-
 .analysis-content {
   font-size: 14px;
   line-height: 1.8;
   color: #333;
 }
 
+.analysis-content h1,
+.analysis-content h2,
+.analysis-content h3 {
+  margin: 20px 0 10px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.analysis-content h1 { font-size: 20px; }
+.analysis-content h2 { font-size: 17px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+.analysis-content h3 { font-size: 15px; }
+
+.analysis-content p {
+  margin: 8px 0;
+}
+
+.analysis-content ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.analysis-content li {
+  margin: 4px 0;
+}
+
+.analysis-content strong {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.analysis-content code {
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+}
+
+.analysis-content pre {
+  background: #2d2d2d;
+  color: #f8f8f2;
+  padding: 14px 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.analysis-content pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: 13px;
+}
+
+.analysis-content blockquote {
+  border-left: 3px solid #00beaa;
+  margin: 12px 0;
+  padding: 8px 16px;
+  background: #f0f9f8;
+  color: #555;
+  border-radius: 0 6px 6px 0;
+}
+
+.analysis-content hr {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 16px 0;
+}
+
+.analysis-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.analysis-content th,
+.analysis-content td {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  text-align: left;
+}
+
+.analysis-content th {
+  background: #f5f5f5;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.analysis-content tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.analysis-content tr:hover {
+  background: #f0f9f8;
+}
+
 .markdown {
-  white-space: pre-wrap;
+  white-space: normal;
+}
+
+/* ========== 分析报告 Tab ========== */
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.report-company {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.report-body {
+  background: #fff;
+  padding: 20px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+/* ========== 左右分栏布局 ========== */
+
+.split-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  min-height: 400px;
+}
+
+.split-list {
+  border-right: 1px solid #eee;
+  padding-right: 16px;
+}
+
+.split-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.split-list-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.btn-add {
+  padding: 4px 10px;
+  background: #00beaa;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-add:hover {
+  background: #00a899;
+}
+
+.split-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.split-list-item {
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.split-list-item:hover {
+  background: #f5f5f5;
+}
+
+.split-list-item.active {
+  background: #e6f7f6;
+  color: #00beaa;
+  font-weight: 500;
+}
+
+.split-list-item .item-name {
+  font-size: 14px;
+}
+
+.split-list-item .item-meta {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.split-list-item.active .item-meta {
+  color: #00a899;
+}
+
+.split-detail {
+  min-width: 0;
+}
+
+.split-detail .empty-state {
+  padding: 60px 20px;
 }
