@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JD采集助手</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>JD采集助手</h1>
+      <p class="subtitle">BOSS直聘技术岗位分析</p>
+    </header>
+
+    <div class="status-bar">
+      <div class="status-item">
+        <span class="label">公司</span>
+        <span class="value" id="companyName">未采集</span>
+      </div>
+      <div class="status-item">
+        <span class="label">岗位数</span>
+        <span class="value" id="jobCount">0</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="collectBtn" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        采集岗位
+      </button>
+    </div>
+
+    <div id="loading" class="loading hidden">
+      <div class="spinner"></div>
+      <span id="loadingText">处理中...</span>
+    </div>
+
+    <div id="message" class="message hidden">
+      <span id="messageText"></span>
+    </div>
+
+    <div class="footer">
+      <a href="#" id="settingsLink">查看数据</a>
+      <span class="divider">|</span>
+      <span class="version">v1.0.0</span>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
