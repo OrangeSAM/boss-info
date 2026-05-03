@@ -75,6 +75,23 @@ function renderMarkdown(text) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // ========== 主题切换 ==========
+
+  const themeToggle = document.getElementById('themeToggle');
+  const savedTheme = localStorage.getItem('theme') || 'light';
+
+  function applyTheme(theme) {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('theme', theme);
+  }
+
+  applyTheme(savedTheme);
+
+  themeToggle.addEventListener('click', () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  });
+
   // ========== 通用 DOM ==========
 
   const tabBtns = document.querySelectorAll('.tab-btn');
