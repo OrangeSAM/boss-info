@@ -54,7 +54,7 @@ function formatJobsForAnalysis(jobs) {
 - 标签: ${Array.isArray(job.tags) ? job.tags.join(', ') : job.tags}
 
 **岗位描述:**
-${job.fullText || job.description || '暂无详细描述'}
+${job.description || '暂无详细描述'}
 
 ---`;
   }).join('\n\n');
