@@ -38,19 +38,16 @@
     const mainList = document.querySelector('ul.job-list');
     if (mainList) {
       jobCards = mainList.querySelectorAll(':scope > li');
-      console.log(`[JD采集助手] 方法1: ul.job-list > li 找到 ${jobCards.length} 个`);
     }
 
     // 方法2: 直接找所有 li.job-card-box
     if (jobCards.length === 0) {
       jobCards = document.querySelectorAll('li.job-card-box');
-      console.log(`[JD采集助手] 方法2: li.job-card-box 找到 ${jobCards.length} 个`);
     }
 
     // 方法3: 更宽泛的选择器
     if (jobCards.length === 0) {
       jobCards = document.querySelectorAll('[class*="job-card"]');
-      console.log(`[JD采集助手] 方法3: [class*="job-card"] 找到 ${jobCards.length} 个`);
     }
 
     jobCards.forEach((card, index) => {
@@ -90,8 +87,6 @@
         console.error(`[JD采集助手] 提取第${index}个卡片失败:`, e);
       }
     });
-
-    console.log(`[JD采集助手] 最终提取 ${cards.length} 个岗位`);
     return cards;
   }
 
@@ -162,11 +157,9 @@
    * 点击岗位卡片
    */
   function clickCardSafely(cardElement) {
-    console.log('[JD采集助手] 点击卡片...');
-
     // 直接点击卡片元素
     const rect = cardElement.getBoundingClientRect();
-    const x = rect.left + 50; // 稍微偏右，避免点击到边缘
+    const x = rect.left + 50;
     const y = rect.top + rect.height / 2;
 
     const event = new MouseEvent('click', {
@@ -178,7 +171,6 @@
     });
 
     cardElement.dispatchEvent(event);
-    console.log(`[JD采集助手] 已点击位置: (${x}, ${y})`);
   }
 
   /**
@@ -195,7 +187,6 @@
   async function goToNextPage() {
     const nextBtn = document.querySelector('a[ka="page-next"]');
     if (nextBtn && !nextBtn.classList.contains('disabled')) {
-      console.log('[JD采集助手] 点击下一页...');
       nextBtn.click();
       await sleep(2000);
       return true;
@@ -216,10 +207,8 @@
    */
   async function collectCurrentPage(callback) {
     const cards = extractJobCards();
-    console.log(`[JD采集助手] 当前页有 ${cards.length} 个岗位`);
 
     if (cards.length === 0) {
-      console.log('[JD采集助手] 警告: 未找到任何岗位卡片');
       return 0;
     }
 
@@ -230,7 +219,6 @@
 
       // 跳过已采集的
       if (collectedJobs.has(card.jobId)) {
-        console.log(`[JD采集助手] 跳过已采集: ${card.title}`);
         continue;
       }
 
@@ -243,8 +231,6 @@
         });
       }
 
-      console.log(`[JD采集助手] 采集 [${i + 1}/${cards.length}]: ${card.title}`);
-
       // 点击卡片
       clickCardSafely(card.element);
 
@@ -253,7 +239,6 @@
 
       // 提取详情
       const detail = extractCurrentJobDetail();
-      console.log(`[JD采集助手] 详情长度: ${detail.description.length}`);
 
       // 存储
       collectedJobs.set(card.jobId, {
@@ -267,18 +252,6 @@
 
       collectedCount++;
       await sleep(500);
-    }
-
-    // 每页采集完实时存储到 storage
-    if (collectedJobs.size > 0) {
-      try {
-        await chrome.storage.local.set({
-          jobs: Array.from(collectedJobs.values())
-        });
-        console.log(`[JD采集助手] 每页存储成功，共 ${collectedJobs.size} 个`);
-      } catch (e) {
-        console.error('[JD采集助手] 每页存储失败:', e);
-      }
     }
 
     return collectedCount;
@@ -310,18 +283,14 @@
     }
 
     isCollecting = true;
-    console.log('[JD采集助手] 开始采集...');
 
     companyName = extractCompanyName();
-    console.log(`[JD采集助手] 公司: ${companyName}`);
 
     let pageNum = 1;
     const maxPages = 10; // 安全限制
 
     try {
       while (pageNum <= maxPages) {
-        console.log(`[JD采集助手] === 第 ${pageNum} 页 ===`);
-
         if (callback) {
           callback({
             type: 'COLLECTION_PROGRESS',
@@ -336,17 +305,14 @@
 
         // 检查是否有下一页
         if (hasNextPage()) {
-          console.log('[JD采集助手] 准备翻页...');
           const moved = await goToNextPage();
 
           if (!moved) {
-            console.log('[JD采集助手] 无法翻页，结束');
             break;
           }
 
           pageNum++;
         } else {
-          console.log('[JD采集助手] 没有下一页，结束');
           break;
         }
       }
@@ -363,33 +329,20 @@
 
     isCollecting = false;
 
+    const jobsData = Array.from(collectedJobs.values());
+
     const result = {
       success: true,
-      count: collectedJobs.size,
+      count: jobsData.length,
       companyName: companyName,
       pages: pageNum,
-      jobs: Array.from(collectedJobs.values())
+      jobs: jobsData
     };
 
-    console.log(`[JD采集助手] 采集完成: ${result.count} 个岗位`);
-
-    // 持久化到 storage.local
-    try {
-      const jobsData = Array.from(collectedJobs.values());
-      console.log(`[JD采集助手] 准备存储 ${jobsData.length} 个岗位到 storage.local`);
-      await chrome.storage.local.set({
-        jobs: jobsData,
-        companyName: companyName
-      });
-      console.log('[JD采集助手] storage.local 写入成功');
-    } catch (e) {
-      console.error('[JD采集助手] storage.local 写入失败:', e);
-    }
-
-    // 通知Background
+    // 通知 Background 写入存储
     chrome.runtime.sendMessage({
       type: 'JOB_LIST_COLLECTED',
-      count: result.count,
+      jobs: jobsData,
       companyName: companyName
     }).catch(() => {});
 
@@ -407,7 +360,6 @@
   function clearJobs() {
     collectedJobs.clear();
     companyName = '';
-    chrome.storage.local.set({ jobs: [], companyName: '' });
   }
 
   // 消息监听

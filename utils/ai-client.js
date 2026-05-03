@@ -172,15 +172,22 @@ async function analyzeWithAI(config, jobs, companyName) {
   const jobText = formatJobsForAnalysis(jobs);
   const userMessage = `公司名称：${companyName}
 
-以下是该公司的所有技术岗位JD：
+以下是该公司的所有岗位JD：
 
 ${analysisPrompt}
 
 ${jobText}`;
 
+  console.log('[JD采集助手] Prompt 组装完成:');
+  console.log('- 公司:', companyName);
+  console.log('- 岗位数:', jobs.length);
+  console.log('- Prompt 长度:', analysisPrompt.length, '字符');
+  console.log('- 总消息长度:', userMessage.length, '字符');
+  console.log('[JD采集助手] 完整 Prompt:', userMessage);
+
   // 自动检测API格式
   const apiFormat = detectApiFormat(apiEndpoint);
-  console.log(`[JD采集助手] 检测到API格式: ${apiFormat}`);
+  console.log('[JD采集助手] API格式:', apiFormat);
 
   if (apiFormat === 'anthropic') {
     return await callAnthropicApi(apiEndpoint, apiKey, model, userMessage);

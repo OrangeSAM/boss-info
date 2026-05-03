@@ -1,65 +1,39 @@
 /**
- * BOSS直聘 JD采集助手 - Background Service Worker
- * 处理数据存储和AI分析
+ * BOSS直聘 JD采集助手 - Background Service Worker（多 Provider + 多公司）
  */
 
 import { analyzeWithAI, testApiConnection, generateMarkdownReport } from '../utils/ai-client.js';
 
 // 初始化
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('[JD采集助手] 扩展已安装');
-  // 初始化存储
-  chrome.storage.local.set({
-    jobs: [],
-    analyses: [],
-    companyName: ''
-  });
+  chrome.storage.local.set({ companies: [], activeCompanyId: null });
 });
 
-// 监听来自Content Script的消息
+// 消息监听
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('[JD采集助手] Background 收到消息:', request.type || request.action);
   handleMessage(request, sender, sendResponse);
   return true;
 });
 
-/**
- * 处理消息
- */
 async function handleMessage(request, sender, sendResponse) {
-  console.log('[JD采集助手] Background 处理消息:', JSON.stringify(request).substring(0, 100));
   try {
     switch (request.type) {
       case 'TEST_API':
         await testApiConnectionHandler(request, sendResponse);
         break;
-
       case 'JOB_LIST_COLLECTED':
         await handleJobListCollected(request);
         sendResponse({ success: true });
         break;
-
-      case 'JOB_DETAIL_COLLECTED':
-        await handleJobDetailCollected(request);
-        sendResponse({ success: true });
-        break;
-
       case 'START_ANALYSIS':
-        await startAnalysis(sendResponse);
+        await startAnalysis(request, sendResponse);
         break;
-
       case 'GET_EXPORT_DATA':
-        await getExportData(request.exportType, sendResponse);
+        await getExportData(request, sendResponse);
         break;
-
       case 'GET_STATUS':
         await getStatus(sendResponse);
         break;
-
-      case 'CLEAR_DATA':
-        await clearData(sendResponse);
-        break;
-
       default:
         sendResponse({ success: false, error: '未知操作类型' });
     }
@@ -70,11 +44,10 @@ async function handleMessage(request, sender, sendResponse) {
 }
 
 /**
- * 测试API连接
+ * 测试 API 连接
  */
 async function testApiConnectionHandler(request, sendResponse) {
   const { apiEndpoint, apiKey, model } = request;
-
   try {
     await testApiConnection({ apiEndpoint, apiKey, model });
     sendResponse({ success: true });
@@ -85,80 +58,117 @@ async function testApiConnectionHandler(request, sendResponse) {
 
 /**
  * 处理岗位列表采集完成
+ * 将数据写入对应的 company 条目（按名称匹配，有则追加，无则新建）
  */
 async function handleJobListCollected(request) {
-  const { count, companyName } = request;
-  console.log(`[JD采集助手] 收到采集完成消息: ${companyName}, ${count} 个岗位`);
-  await chrome.storage.local.set({ companyName });
-  console.log('[JD采集助手] companyName 已存储');
+  const { jobs, companyName } = request;
+
+  if (!companyName || !jobs || jobs.length === 0) return;
+
+  const { companies = [] } = await chrome.storage.local.get('companies');
+
+  // 按名称查找已有公司
+  let company = companies.find(c => c.name === companyName);
+
+  if (company) {
+    // 追加岗位（去重）
+    const existingIds = new Set(company.jobs.map(j => j.id));
+    const newJobs = jobs.filter(j => !existingIds.has(j.id));
+    company.jobs.push(...newJobs);
+  } else {
+    // 新建公司条目
+    company = {
+      id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: companyName,
+      jobs: jobs,
+      analyses: [],
+      collectedAt: Date.now()
+    };
+    companies.push(company);
+  }
+
+  await chrome.storage.local.set({ companies });
+
   notifyPopup({
     type: 'STATUS_UPDATE',
-    jobCount: count,
+    jobCount: company.jobs.length,
     companyName: companyName
   });
 }
 
 /**
- * 处理岗位详情采集完成
+ * 获取活跃 Provider 配置
  */
-async function handleJobDetailCollected(request) {
-  const { count } = request;
-  notifyPopup({
-    type: 'STATUS_UPDATE',
-    jobCount: count
-  });
+async function getActiveProvider() {
+  const { providers = [], activeProviderId } = await chrome.storage.sync.get(['providers', 'activeProviderId']);
+
+  if (providers.length === 0) return null;
+
+  const provider = providers.find(p => p.id === activeProviderId) || providers[0];
+  if (!provider || !provider.endpoint || !provider.key) return null;
+
+  return {
+    apiEndpoint: provider.endpoint,
+    apiKey: provider.key,
+    model: provider.model
+  };
 }
 
 /**
- * 开始AI分析
+ * 获取指定公司
  */
-async function startAnalysis(sendResponse) {
-  // 从 storage.local 读取岗位数据
-  const { jobs = [] } = await chrome.storage.local.get('jobs');
-  const { companyName = '' } = await chrome.storage.local.get('companyName');
+async function getCompany(companyId) {
+  const { companies = [] } = await chrome.storage.local.get('companies');
+  return companies.find(c => c.id === companyId) || null;
+}
 
-  if (jobs.length === 0) {
+/**
+ * 保存公司数据
+ */
+async function saveCompany(company) {
+  const { companies = [] } = await chrome.storage.local.get('companies');
+  const index = companies.findIndex(c => c.id === company.id);
+  if (index >= 0) {
+    companies[index] = company;
+  }
+  await chrome.storage.local.set({ companies });
+}
+
+/**
+ * 开始 AI 分析
+ */
+async function startAnalysis(request, sendResponse) {
+  const { companyId } = request;
+
+  const company = await getCompany(companyId);
+  if (!company || company.jobs.length === 0) {
     sendResponse({ success: false, error: '没有采集到岗位数据，请先采集' });
     return;
   }
 
-  // 获取AI配置
-  const config = await chrome.storage.sync.get(['apiEndpoint', 'apiKey', 'model']);
-
-  if (!config.apiEndpoint || !config.apiKey) {
-    sendResponse({ success: false, error: '请先在设置中配置API地址和Key' });
+  const config = await getActiveProvider();
+  if (!config) {
+    sendResponse({ success: false, error: '请先在设置中配置 API Provider' });
     return;
   }
 
-  // 通知开始分析
-  notifyPopup({ type: 'ANALYSIS_START', jobCount: jobs.length });
+  notifyPopup({ type: 'ANALYSIS_START', jobCount: company.jobs.length });
 
   try {
-    // 调用AI分析
-    const analysis = await analyzeWithAI(config, jobs, companyName);
+    const analysis = await analyzeWithAI(config, company.jobs, company.name);
 
-    // 保存分析结果
-    const analyses = await chrome.storage.local.get('analyses');
-    const analysisRecord = {
+    if (!company.analyses) company.analyses = [];
+    company.analyses.push({
       id: Date.now(),
-      companyName: companyName,
-      jobCount: jobs.length,
+      jobCount: company.jobs.length,
       analysis: analysis,
       createdAt: Date.now()
-    };
-
-    const existingAnalyses = analyses.analyses || [];
-    existingAnalyses.push(analysisRecord);
-    await chrome.storage.local.set({ analyses: existingAnalyses });
-
-    // 通知分析完成
-    notifyPopup({
-      type: 'ANALYSIS_COMPLETE',
-      analysis: analysis,
-      companyName: companyName
     });
 
-    sendResponse({ success: true, analysis: analysis });
+    await saveCompany(company);
+
+    notifyPopup({ type: 'ANALYSIS_COMPLETE', analysis, companyName: company.name });
+    sendResponse({ success: true, analysis });
   } catch (error) {
     notifyPopup({ type: 'ANALYSIS_ERROR', error: error.message });
     sendResponse({ success: false, error: error.message });
@@ -166,55 +176,45 @@ async function startAnalysis(sendResponse) {
 }
 
 /**
- * 获取导出数据（返回数据给Popup，由Popup处理下载）
+ * 获取导出数据
  */
-async function getExportData(exportType, sendResponse) {
+async function getExportData(request, sendResponse) {
+  const { exportType, companyId } = request;
+
+  const company = await getCompany(companyId);
+  if (!company || company.jobs.length === 0) {
+    sendResponse({ success: false, error: '没有可导出的数据，请先采集' });
+    return;
+  }
+
   try {
-    // 从 storage.local 读取岗位数据
-    const { jobs = [] } = await chrome.storage.local.get('jobs');
-    const { companyName = '未知公司' } = await chrome.storage.local.get('companyName');
-
-    if (jobs.length === 0) {
-      sendResponse({ success: false, error: '没有可导出的数据，请先采集' });
-      return;
-    }
-
     if (exportType === 'report') {
-      // 导出AI分析报告
-      const { analyses = [] } = await chrome.storage.local.get('analyses');
-
-      if (analyses.length === 0) {
-        sendResponse({ success: false, error: '没有可导出的分析结果，请先进行AI分析' });
+      if (!company.analyses || company.analyses.length === 0) {
+        sendResponse({ success: false, error: '没有可导出的分析结果，请先进行 AI 分析' });
         return;
       }
 
-      const latestAnalysis = analyses[analyses.length - 1];
-      const markdown = generateMarkdownReport(latestAnalysis.analysis, jobs, companyName);
+      const latestAnalysis = company.analyses[company.analyses.length - 1];
+      const markdown = generateMarkdownReport(latestAnalysis.analysis, company.jobs, company.name);
 
       sendResponse({
         success: true,
-        data: {
-          markdown: markdown,
-          companyName: companyName
-        }
+        data: { markdown, companyName: company.name }
       });
     } else if (exportType === 'raw') {
-      // 导出原始数据
       const exportData = {
         exportedAt: new Date().toISOString(),
         source: 'BOSS直聘JD采集助手',
-        companyName: companyName,
-        totalJobs: jobs.length,
-        jobs: jobs
+        companyName: company.name,
+        totalJobs: company.jobs.length,
+        jobs: company.jobs
       };
-
-      const jsonData = JSON.stringify(exportData, null, 2);
 
       sendResponse({
         success: true,
         data: {
-          jsonData: jsonData,
-          companyName: companyName
+          jsonData: JSON.stringify(exportData, null, 2),
+          companyName: company.name
         }
       });
     } else {
@@ -226,21 +226,29 @@ async function getExportData(exportType, sendResponse) {
 }
 
 /**
- * 获取状态
+ * 获取状态（返回最新公司信息）
  */
 async function getStatus(sendResponse) {
   try {
-    // 从 storage.local 读取数据
-    const { jobs = [] } = await chrome.storage.local.get('jobs');
-    const { companyName = '' } = await chrome.storage.local.get('companyName');
-    const { analyses = [] } = await chrome.storage.local.get('analyses');
+    const { companies = [] } = await chrome.storage.local.get('companies');
+
+    if (companies.length === 0) {
+      sendResponse({
+        success: true,
+        data: { jobCount: 0, companyName: '', hasAnalysis: false }
+      });
+      return;
+    }
+
+    // 返回最近采集的公司
+    const latest = companies.reduce((a, b) => (a.collectedAt > b.collectedAt ? a : b));
 
     sendResponse({
       success: true,
       data: {
-        jobCount: jobs.length,
-        companyName: companyName,
-        hasAnalysis: analyses.length > 0
+        jobCount: latest.jobs.length,
+        companyName: latest.name,
+        hasAnalysis: latest.analyses && latest.analyses.length > 0
       }
     });
   } catch (error) {
@@ -252,35 +260,8 @@ async function getStatus(sendResponse) {
 }
 
 /**
- * 清空数据
- */
-async function clearData(sendResponse) {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-  if (tab) {
-    try {
-      await chrome.tabs.sendMessage(tab.id, { action: 'clearJobs' });
-    } catch (e) {
-      // 忽略错误
-    }
-  }
-
-  await chrome.storage.local.set({ jobs: [], companyName: '', analyses: [] });
-
-  notifyPopup({
-    type: 'STATUS_UPDATE',
-    jobCount: 0,
-    companyName: ''
-  });
-
-  sendResponse({ success: true });
-}
-
-/**
- * 通知Popup
+ * 通知 Popup
  */
 function notifyPopup(message) {
-  chrome.runtime.sendMessage(message).catch(() => {
-    // Popup可能未打开，忽略错误
-  });
+  chrome.runtime.sendMessage(message).catch(() => {});
 }
