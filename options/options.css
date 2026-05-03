@@ -270,3 +270,160 @@ body {
 .hidden {
   display: none !important;
 }
+
+/* ========== 数据 Tab ========== */
+
+.data-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.data-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.data-company {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.data-count {
+  font-size: 13px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.btn-danger {
+  background: #ff4d4f;
+  color: #fff;
+  width: auto;
+}
+
+.btn-danger:hover {
+  background: #ff3333;
+}
+
+.job-list {
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  min-height: 100px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: #999;
+}
+
+.empty-state p {
+  margin-bottom: 8px;
+}
+
+.job-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.job-item:last-child {
+  border-bottom: none;
+}
+
+.job-item:hover {
+  background: #f0f0f0;
+}
+
+.job-item.expanded {
+  background: #f0f9f8;
+}
+
+.job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.job-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.job-salary {
+  font-size: 13px;
+  color: #ff6600;
+  font-weight: 500;
+}
+
+.job-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: #e8f4f3;
+  color: #00beaa;
+  border-radius: 4px;
+}
+
+.job-detail {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.job-detail p {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.data-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.data-actions .btn {
+  width: auto;
+  flex: 1;
+}
+
+.analysis-result {
+  margin-top: 24px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.analysis-result h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+}
+
+.analysis-content {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #333;
+}
+
+.markdown {
+  white-space: pre-wrap;
+}

@@ -67,7 +67,8 @@ const FOCUS_MODULES = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('settingsForm');
+  const apiForm = document.getElementById('settingsForm');
+  const promptForm = document.getElementById('promptForm');
   const tabBtns = document.querySelectorAll('.tab-btn');
   const tabPanels = document.querySelectorAll('.tab-panel');
   const apiEndpointInput = document.getElementById('apiEndpoint');
@@ -237,7 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 事件监听
-  form.addEventListener('submit', saveSettings);
+  apiForm.addEventListener('submit', saveSettings);
+  promptForm.addEventListener('submit', saveSettings);
 
   togglePromptBtn.addEventListener('click', () => {
     promptPreview.classList.toggle('show');
@@ -256,4 +258,188 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 初始化
   loadSettings();
+
+  // ========== 数据 Tab 相关 ==========
+
+  const dataCompany = document.getElementById('dataCompany');
+  const dataCount = document.getElementById('dataCount');
+  const jobListItems = document.getElementById('jobListItems');
+  const emptyState = document.getElementById('emptyState');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  const exportReportBtn = document.getElementById('exportReportBtn');
+  const exportRawBtn = document.getElementById('exportRawBtn');
+  const clearDataBtn = document.getElementById('clearDataBtn');
+  const analysisResult = document.getElementById('analysisResult');
+  const analysisContent = document.getElementById('analysisContent');
+
+  let currentJobs = [];
+
+  /**
+   * 加载已采集数据
+   */
+  async function loadJobData() {
+    const { jobs = [] } = await chrome.storage.local.get('jobs');
+    const { companyName = '' } = await chrome.storage.local.get('companyName');
+    const { analyses = [] } = await chrome.storage.local.get('analyses');
+
+    currentJobs = jobs;
+    renderJobList(jobs, companyName);
+
+    // 更新按钮状态
+    analyzeBtn.disabled = jobs.length === 0;
+    exportRawBtn.disabled = jobs.length === 0;
+    exportReportBtn.disabled = analyses.length === 0;
+
+    // 显示最新的分析结果
+    if (analyses.length > 0) {
+      const latest = analyses[analyses.length - 1];
+      showAnalysisResult(latest.analysis);
+    }
+  }
+
+  /**
+   * 渲染岗位列表
+   */
+  function renderJobList(jobs, companyName) {
+    dataCompany.textContent = companyName || '未采集';
+    dataCount.textContent = `共 ${jobs.length} 个岗位`;
+
+    if (jobs.length === 0) {
+      emptyState.classList.remove('hidden');
+      jobListItems.innerHTML = '';
+      return;
+    }
+
+    emptyState.classList.add('hidden');
+    jobListItems.innerHTML = jobs.map((job, index) => `
+      <div class="job-item" data-index="${index}">
+        <div class="job-header">
+          <span class="job-title">${job.title || '未知岗位'}</span>
+          <span class="job-salary">${job.salary || ''}</span>
+        </div>
+        <div class="job-tags">
+          ${(job.tags || []).slice(0, 3).map(tag => `<span class="tag">${tag}</span>`).join('')}
+        </div>
+        <div class="job-detail hidden">
+          <p>${job.description || '暂无描述'}</p>
+        </div>
+      </div>
+    `).join('');
+
+    // 添加点击展开/收起
+    jobListItems.querySelectorAll('.job-item').forEach(item => {
+      item.addEventListener('click', () => {
+        item.classList.toggle('expanded');
+        item.querySelector('.job-detail').classList.toggle('hidden');
+      });
+    });
+  }
+
+  /**
+   * 显示分析结果
+   */
+  function showAnalysisResult(analysis) {
+    if (!analysis) return;
+    analysisContent.innerHTML = `<div class="markdown">${analysis.replace(/\n/g, '<br>')}</div>`;
+    analysisResult.classList.remove('hidden');
+  }
+
+  /**
+   * 下载文件
+   */
+  function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * AI 分析
+   */
+  analyzeBtn.addEventListener('click', async () => {
+    analyzeBtn.disabled = true;
+    analyzeBtn.textContent = '分析中...';
+
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'START_ANALYSIS' });
+
+      if (response.success) {
+        showAnalysisResult(response.analysis);
+        exportReportBtn.disabled = false;
+        showMessage('分析完成！');
+      } else {
+        showMessage(response.error || '分析失败', 'error');
+      }
+    } catch (error) {
+      showMessage('分析失败: ' + error.message, 'error');
+    } finally {
+      analyzeBtn.disabled = false;
+      analyzeBtn.textContent = 'AI 分析';
+    }
+  });
+
+  /**
+   * 导出报告
+   */
+  exportReportBtn.addEventListener('click', async () => {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_EXPORT_DATA', exportType: 'report' });
+
+      if (response.success) {
+        const { markdown, companyName } = response.data;
+        const filename = `${companyName || '未知公司'}_技术分析报告_${new Date().toISOString().slice(0, 10)}.md`;
+        downloadFile(markdown, filename, 'text/markdown;charset=utf-8');
+        showMessage(`已导出: ${filename}`);
+      } else {
+        showMessage(response.error || '导出失败', 'error');
+      }
+    } catch (error) {
+      showMessage('导出失败: ' + error.message, 'error');
+    }
+  });
+
+  /**
+   * 导出原始数据
+   */
+  exportRawBtn.addEventListener('click', async () => {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_EXPORT_DATA', exportType: 'raw' });
+
+      if (response.success) {
+        const { jsonData, companyName } = response.data;
+        const filename = `${companyName || '未知公司'}_原始数据_${new Date().toISOString().slice(0, 10)}.json`;
+        downloadFile(jsonData, filename, 'application/json;charset=utf-8');
+        showMessage(`已导出: ${filename}`);
+      } else {
+        showMessage(response.error || '导出失败', 'error');
+      }
+    } catch (error) {
+      showMessage('导出失败: ' + error.message, 'error');
+    }
+  });
+
+  /**
+   * 清空数据
+   */
+  clearDataBtn.addEventListener('click', async () => {
+    if (!confirm('确定要清空所有采集数据吗？')) return;
+
+    await chrome.storage.local.set({ jobs: [], companyName: '', analyses: [] });
+    currentJobs = [];
+    renderJobList([], '');
+    analysisResult.classList.add('hidden');
+    analyzeBtn.disabled = true;
+    exportReportBtn.disabled = true;
+    exportRawBtn.disabled = true;
+    showMessage('数据已清空');
+  });
+
+  // 初始化加载数据
+  loadJobData();
 });
