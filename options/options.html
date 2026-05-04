@@ -86,19 +86,13 @@
           <!-- 左侧：配置区 -->
           <div class="prompt-config">
             <div class="section">
-              <h2 class="section-title">岗位方向</h2>
+              <h2 class="section-title">目标岗位</h2>
               <div class="form-group">
-                <label for="jobType">我的岗位方向</label>
-                <select id="jobType" name="jobType">
-                  <option value="frontend">前端开发</option>
-                  <option value="backend">后端开发</option>
-                  <option value="fullstack">全栈开发</option>
-                  <option value="mobile">移动端开发</option>
-                  <option value="ai">AI/算法</option>
-                  <option value="product">产品经理</option>
-                  <option value="test">测试</option>
-                  <option value="other">其他</option>
-                </select>
+                <label>选择要分析的岗位</label>
+                <div id="targetJobList" class="target-job-list">
+                  <p class="hint">暂无已采集的岗位数据</p>
+                </div>
+                <p class="hint">不选择则分析该公司所有岗位</p>
               </div>
             </div>
 
@@ -131,6 +125,15 @@
                     <span>风险提示</span>
                   </label>
                 </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2 class="section-title">个人背景</h2>
+              <div class="form-group">
+                <label for="userBackground">简历/工作经历/技术栈（可选）</label>
+                <textarea id="userBackground" name="userBackground" rows="5" placeholder="粘贴你的简历或简要介绍&#10;例如：3年前端开发，熟悉 React/Vue，有小程序和 Node.js 经验，目前在一家电商公司做用户增长方向"></textarea>
+                <p class="hint">提供背景信息后，AI 会根据你的经验给出更精准的面试建议</p>
               </div>
             </div>
 

@@ -367,6 +367,65 @@ body {
   font-style: italic;
 }
 
+/* ========== Target Job List ========== */
+
+.target-job-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  background: var(--bg-inset);
+}
+
+.target-job-group {
+  margin-bottom: 8px;
+}
+
+.target-job-group:last-child {
+  margin-bottom: 0;
+}
+
+.target-job-company {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  padding: 4px 8px;
+  margin-bottom: 4px;
+}
+
+.target-job-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  margin-bottom: 2px;
+}
+
+.target-job-item:hover {
+  background: var(--bg-card);
+  border-color: var(--border-light);
+}
+
+.target-job-item input {
+  flex-shrink: 0;
+}
+
+.target-job-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.target-job-salary {
+  font-size: 12px;
+  color: var(--brand);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 /* ========== Buttons ========== */
 
 .btn {
@@ -484,7 +543,7 @@ body {
 
 .prompt-preview textarea {
   width: 100%;
-  min-height: 400px;
+  min-height: 600px;
   font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.75;
