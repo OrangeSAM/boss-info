@@ -589,6 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
     dataCompany.textContent = company.name || '未知公司';
     dataCount.textContent = `共 ${company.jobs.length} 个岗位`;
 
+    renderCompanyProfile(company.companyProfile);
     renderJobList(company.jobs);
 
     analyzeBtn.disabled = company.jobs.length === 0;
@@ -607,6 +608,40 @@ document.addEventListener('DOMContentLoaded', () => {
     activeCompanyId = null;
     showAnalysisResult(null);
     renderCompanyList();
+  }
+
+  const companyProfile = document.getElementById('companyProfile');
+  const profileContent = document.getElementById('profileContent');
+
+  function renderCompanyProfile(profile) {
+    if (!profile || Object.keys(profile).length === 0) {
+      companyProfile.classList.add('hidden');
+      return;
+    }
+
+    companyProfile.classList.remove('hidden');
+    let html = '';
+
+    if (profile.companyIntro) {
+      html += `<div class="profile-section"><h4>公司简介</h4><p>${profile.companyIntro}</p></div>`;
+    }
+    if (profile.culture) {
+      html += `<div class="profile-section"><h4>企业文化</h4><p>${profile.culture}</p></div>`;
+    }
+    if (profile.talentDev?.length) {
+      html += `<div class="profile-section"><h4>人才发展</h4><div class="tag-list">${profile.talentDev.map(t => `<span class="tag">${t}</span>`).join('')}</div></div>`;
+    }
+    if (profile.products?.length) {
+      html += `<div class="profile-section"><h4>产品介绍</h4><p>${profile.products.join('、')}</p></div>`;
+    }
+    if (profile.workTime) {
+      html += `<div class="profile-section"><h4>工作时间及福利</h4><p>${profile.workTime}</p></div>`;
+    }
+    if (profile.benefits?.length) {
+      html += `<div class="profile-section"><div class="tag-list">${profile.benefits.map(t => `<span class="tag">${t}</span>`).join('')}</div></div>`;
+    }
+
+    profileContent.innerHTML = html;
   }
 
   function renderJobList(jobs) {

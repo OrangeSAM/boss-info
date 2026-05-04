@@ -61,7 +61,7 @@ async function testApiConnectionHandler(request, sendResponse) {
  * 将数据写入对应的 company 条目（按名称匹配，有则追加，无则新建）
  */
 async function handleJobListCollected(request) {
-  const { jobs, companyName } = request;
+  const { jobs, companyName, companyProfile } = request;
 
   if (!companyName || !jobs || jobs.length === 0) return;
 
@@ -75,6 +75,10 @@ async function handleJobListCollected(request) {
     const existingIds = new Set(company.jobs.map(j => j.id));
     const newJobs = jobs.filter(j => !existingIds.has(j.id));
     company.jobs.push(...newJobs);
+    // 如果有新的公司简介且之前没有，则存储
+    if (companyProfile && !company.companyProfile) {
+      company.companyProfile = companyProfile;
+    }
   } else {
     // 新建公司条目
     company = {
@@ -82,6 +86,7 @@ async function handleJobListCollected(request) {
       name: companyName,
       jobs: jobs,
       analyses: [],
+      companyProfile: companyProfile || null,
       collectedAt: Date.now()
     };
     companies.push(company);
@@ -155,7 +160,7 @@ async function startAnalysis(request, sendResponse) {
   notifyPopup({ type: 'ANALYSIS_START', jobCount: company.jobs.length });
 
   try {
-    const analysis = await analyzeWithAI(config, company.jobs, company.name);
+    const analysis = await analyzeWithAI(config, company.jobs, company.name, company.companyProfile);
 
     if (!company.analyses) company.analyses = [];
     company.analyses.push({

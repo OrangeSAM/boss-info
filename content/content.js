@@ -267,6 +267,62 @@
   }
 
   /**
+   * 从 HTML 字符串中解析公司简介信息
+   */
+  function parseCompanyProfile(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const profile = {};
+
+    // 公司简介
+    const jobSecs = doc.querySelectorAll('.job-sec');
+    for (const sec of jobSecs) {
+      const h3 = sec.querySelector('h3');
+      if (!h3) continue;
+      const title = h3.textContent.trim();
+      if (title === '公司简介') {
+        profile.companyIntro = sec.querySelector('.text.fold-text')?.textContent?.trim() || '';
+      } else if (title === '企业文化') {
+        profile.culture = sec.querySelector('.text.fold-text')?.textContent?.trim() || '';
+      } else if (title === '人才发展') {
+        const items = sec.querySelectorAll('.company-talents-list li');
+        profile.talentDev = Array.from(items).map(li => li.textContent.trim());
+      } else if (title === '产品介绍') {
+        const products = sec.querySelectorAll('.company-product-intro');
+        profile.products = Array.from(products).map(p => {
+          const text = p.textContent.trim().replace('展开', '').trim();
+          return text;
+        });
+      } else if (title === '工作时间及福利') {
+        const spans = sec.querySelectorAll('p span');
+        profile.workTime = Array.from(spans).map(s => s.textContent.trim()).join('、');
+        const benefits = sec.querySelectorAll('.work-tag-item');
+        profile.benefits = Array.from(benefits).map(li => li.textContent.trim());
+      }
+    }
+
+    return profile;
+  }
+
+  /**
+   * 采集公司简介信息
+   */
+  async function fetchCompanyProfile() {
+    try {
+      // 从岗位页 URL 构造公司简介页 URL
+      // /gongsi/job/xxx.html → /gongsi/xxx.html
+      const profileUrl = window.location.href.replace('/gongsi/job/', '/gongsi/');
+      const response = await fetch(profileUrl);
+      if (!response.ok) return null;
+      const html = await response.text();
+      return parseCompanyProfile(html);
+    } catch (e) {
+      console.error('[JD采集助手] 采集公司简介失败:', e);
+      return null;
+    }
+  }
+
+  /**
    * 完整采集流程
    */
   async function performCollection(callback) {
@@ -331,6 +387,18 @@
 
     const jobsData = Array.from(collectedJobs.values());
 
+    // 采集公司简介（如果还没有的话）
+    let companyProfile = null;
+    try {
+      const { companies = [] } = await chrome.storage.local.get('companies');
+      const existingCompany = companies.find(c => c.name === companyName);
+      if (!existingCompany || !existingCompany.companyProfile) {
+        companyProfile = await fetchCompanyProfile();
+      }
+    } catch (e) {
+      console.error('[JD采集助手] 获取公司简介状态失败:', e);
+    }
+
     const result = {
       success: true,
       count: jobsData.length,
@@ -343,7 +411,8 @@
     chrome.runtime.sendMessage({
       type: 'JOB_LIST_COLLECTED',
       jobs: jobsData,
-      companyName: companyName
+      companyName: companyName,
+      companyProfile: companyProfile
     }).catch(() => {});
 
     return result;

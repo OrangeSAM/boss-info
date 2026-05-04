@@ -152,7 +152,7 @@ async function getAnalysisPrompt() {
 /**
  * 调用AI分析
  */
-async function analyzeWithAI(config, jobs, companyName) {
+async function analyzeWithAI(config, jobs, companyName, companyProfile) {
   const { apiEndpoint, apiKey, model } = config;
 
   if (!apiEndpoint) {
@@ -170,8 +170,24 @@ async function analyzeWithAI(config, jobs, companyName) {
   // 从设置中获取用户配置的 prompt
   const analysisPrompt = await getAnalysisPrompt();
   const jobText = formatJobsForAnalysis(jobs);
-  const userMessage = `公司名称：${companyName}
 
+  // 组装公司背景信息
+  let companyProfileText = '';
+  if (companyProfile) {
+    const parts = [];
+    if (companyProfile.companyIntro) parts.push(`公司简介：${companyProfile.companyIntro}`);
+    if (companyProfile.culture) parts.push(`企业文化：${companyProfile.culture}`);
+    if (companyProfile.products?.length) parts.push(`产品介绍：${companyProfile.products.join('、')}`);
+    if (companyProfile.workTime) parts.push(`工作时间：${companyProfile.workTime}`);
+    if (companyProfile.benefits?.length) parts.push(`福利待遇：${companyProfile.benefits.join('、')}`);
+    if (companyProfile.talentDev?.length) parts.push(`人才发展：${companyProfile.talentDev.join('、')}`);
+    if (parts.length > 0) {
+      companyProfileText = `\n## 公司背景信息\n${parts.join('\n')}\n`;
+    }
+  }
+
+  const userMessage = `公司名称：${companyName}
+${companyProfileText}
 以下是该公司的所有岗位JD：
 
 ${analysisPrompt}
