@@ -145,7 +145,7 @@ async function callOpenAiApi(apiEndpoint, apiKey, model, userMessage) {
  * 获取用户配置的分析提示词
  */
 async function getAnalysisPrompt() {
-  const settings = await chrome.storage.sync.get('analysisPrompt');
+  const settings = await chrome.storage.local.get('analysisPrompt');
   return settings.analysisPrompt || DEFAULT_ANALYSIS_PROMPT;
 }
 

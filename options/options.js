@@ -545,6 +545,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('\n\n---\n\n');
   }
 
+  /**
+   * 生成 prompt 模板（不含岗位数据，用于保存和 AI 分析时动态替换）
+   */
+  function generatePromptTemplate() {
+    const userBackground = userBackgroundInput.value.trim();
+    const customRequirements = customRequirementsInput.value.trim();
+    const focusCheckboxes = document.querySelectorAll('input[name="focus"]:checked');
+    const focusPoints = Array.from(focusCheckboxes).map(cb => cb.value);
+
+    // 根据选中的岗位推断类型
+    const selectedJobs = getSelectedJobs();
+    const jobType = inferJobType(selectedJobs);
+
+    // 角色设定
+    const rolePrompt = getRolePrompt(jobType);
+
+    // 获取岗位定制的模块
+    const overrides = FOCUS_MODULE_OVERRIDES[jobType] || {};
+
+    let prompt = rolePrompt;
+
+    // 我的背景
+    if (userBackground) {
+      prompt += `\n\n## 我的背景\n${userBackground}`;
+    } else {
+      prompt += '\n\n## 我的背景\n（在这里填写你的简历、工作经历、技术栈等信息）';
+    }
+
+    prompt += '\n\n## 我要面试的公司\n公司名称：（选择目标岗位后自动填充）\n（公司背景信息会在这里自动填充）';
+    prompt += '\n\n## 我要投递的岗位\n（请先选择一个目标岗位）';
+
+    prompt += '\n\n## 请帮我';
+    focusPoints.forEach(point => {
+      const module = overrides[point] || FOCUS_MODULES[point];
+      if (module) {
+        prompt += module + '\n';
+      }
+    });
+
+    if (customRequirements) {
+      prompt += `\n\n## 其他需求\n${customRequirements}`;
+    }
+
+    prompt += '\n\n请重点围绕"我需要准备什么"来回答，而不是泛泛分析公司。';
+
+    return prompt;
+  }
+
   function generatePrompt() {
     const userBackground = userBackgroundInput.value.trim();
     const customRequirements = customRequirementsInput.value.trim();
@@ -718,13 +766,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedJob = targetJobList.querySelector('input[name="targetJob"]:checked');
     const selectedJobId = selectedJob ? selectedJob.value : null;
 
+    // 保存模板（不含岗位数据），AI 分析时动态替换占位符
+    const promptTemplate = generatePromptTemplate();
+
     await chrome.storage.sync.set({
       focusPoints,
       customRequirements: customRequirementsInput.value.trim(),
       userBackground: userBackgroundInput.value.trim(),
-      selectedJobId,
-      analysisPrompt: promptContent.value
+      selectedJobId
     });
+
+    // prompt 模板存 local（可能超出 sync 配额）
+    await chrome.storage.local.set({ analysisPrompt: promptTemplate });
 
     showMessage('分析设置已保存');
   });
