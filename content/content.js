@@ -187,7 +187,7 @@
   async function goToNextPage() {
     const nextBtn = document.querySelector('a[ka="page-next"]');
     if (nextBtn && !nextBtn.classList.contains('disabled')) {
-      nextBtn.click();
+      nextBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       await sleep(2000);
       return true;
     }
@@ -288,10 +288,11 @@
         const items = sec.querySelectorAll('.company-talents-list li');
         profile.talentDev = Array.from(items).map(li => li.textContent.trim());
       } else if (title === '产品介绍') {
-        const products = sec.querySelectorAll('.company-product-intro');
-        profile.products = Array.from(products).map(p => {
-          const text = p.textContent.trim().replace('展开', '').trim();
-          return text;
+        const productItems = sec.querySelectorAll('.company-products-new ul > li');
+        profile.products = Array.from(productItems).map(item => {
+          const name = item.querySelector('.name a')?.textContent?.trim() || '';
+          const intro = item.querySelector('.company-product-intro')?.textContent?.trim().replace('展开', '').trim() || '';
+          return name ? `${name}: ${intro}` : intro;
         });
       } else if (title === '工作时间及福利') {
         const spans = sec.querySelectorAll('p span');
@@ -309,8 +310,6 @@
    */
   async function fetchCompanyProfile() {
     try {
-      // 从岗位页 URL 构造公司简介页 URL
-      // /gongsi/job/xxx.html → /gongsi/xxx.html
       const profileUrl = window.location.href.replace('/gongsi/job/', '/gongsi/');
       const response = await fetch(profileUrl);
       if (!response.ok) return null;
