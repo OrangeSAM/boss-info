@@ -2,17 +2,55 @@
  * BOSS直聘 JD采集助手 - 设置页脚本（多 Provider + 多公司）
  */
 
-// 岗位方向对应的预设 prompt
-const JOB_TYPE_PROMPTS = {
-  frontend: `你是一位资深前端技术面试官，有10年面试经验。请重点分析前端相关的技术栈、面试要点和职业发展建议。`,
-  backend: `你是一位资深后端技术面试官，精通分布式系统设计。请重点分析后端技术栈、系统架构和面试要点。`,
-  fullstack: `你是一位全栈技术负责人，前后端均有深入经验。请全面分析技术栈，并给出全栈工程师的成长建议。`,
-  mobile: `你是一位移动端开发专家，熟悉iOS和Android开发。请重点分析移动端技术栈和跨平台方案。`,
-  ai: `你是一位AI算法专家，熟悉大模型和机器学习。请重点分析AI技术栈、算法岗位要求和行业趋势。`,
-  product: `你是一位资深产品经理导师，熟悉互联网产品方法论。请重点分析产品岗位要求、业务方向和面试要点。`,
-  test: `你是一位测试架构师，精通自动化测试和质量保障。请重点分析测试技术栈和质量体系建设。`,
-  other: `你是一位资深HR和招聘分析师。请全面分析公司的技术实力、团队规模和发展前景。`
-};
+/**
+ * 根据选中的岗位推断岗位类型
+ */
+function inferJobType(selectedJobs) {
+  if (!selectedJobs || selectedJobs.length === 0) return 'other';
+
+  const typeCounts = { frontend: 0, backend: 0, fullstack: 0, mobile: 0, ai: 0, product: 0, test: 0 };
+
+  selectedJobs.forEach(job => {
+    const title = (job.title || '').toLowerCase();
+    const tags = (job.tags || []).join(' ').toLowerCase();
+    const text = title + ' ' + tags;
+
+    if (/前端|frontend|react|vue|angular|web/.test(text)) typeCounts.frontend++;
+    if (/后端|backend|java|golang|python|node/.test(text)) typeCounts.backend++;
+    if (/全栈|fullstack/.test(text)) typeCounts.fullstack++;
+    if (/移动端|ios|android|flutter|react native|kotlin|swift/.test(text)) typeCounts.mobile++;
+    if (/\bai\b|算法|机器学习|深度学习|nlp|llm/.test(text)) typeCounts.ai++;
+    if (/产品|product/.test(text)) typeCounts.product++;
+    if (/测试|qa|自动化/.test(text)) typeCounts.test++;
+  });
+
+  let maxCount = 0;
+  let result = 'other';
+  for (const [type, count] of Object.entries(typeCounts)) {
+    if (count > maxCount) {
+      maxCount = count;
+      result = type;
+    }
+  }
+  return result;
+}
+
+/**
+ * 根据岗位类型获取角色设定
+ */
+function getRolePrompt(jobType) {
+  const roles = {
+    frontend: '你是一位资深前端技术面试官，有10年面试经验。请重点分析前端相关的技术栈、面试要点和职业发展建议。',
+    backend: '你是一位资深后端技术面试官，精通分布式系统设计。请重点分析后端技术栈、系统架构和面试要点。',
+    fullstack: '你是一位全栈技术负责人，前后端均有深入经验。请全面分析技术栈，并给出全栈工程师的成长建议。',
+    mobile: '你是一位移动端开发专家，熟悉iOS和Android开发。请重点分析移动端技术栈和跨平台方案。',
+    ai: '你是一位AI算法专家，熟悉大模型和机器学习。请重点分析AI技术栈、算法岗位要求和行业趋势。',
+    product: '你是一位资深产品经理导师，熟悉互联网产品方法论。请重点分析产品岗位要求、业务方向和面试要点。',
+    test: '你是一位测试架构师，精通自动化测试和质量保障。请重点分析测试技术栈和质量体系建设。',
+    other: '你是一位资深HR和招聘分析师。请全面分析公司的技术实力、团队规模和发展前景。'
+  };
+  return roles[jobType] || roles.other;
+}
 
 // 关注点对应的分析模块
 const FOCUS_MODULES = {
@@ -245,8 +283,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // ========== 分析设置 DOM ==========
 
   const promptForm = document.getElementById('promptForm');
-  const jobTypeSelect = document.getElementById('jobType');
   const customRequirementsInput = document.getElementById('customRequirements');
+  const userBackgroundInput = document.getElementById('userBackground');
+  const targetJobList = document.getElementById('targetJobList');
 
   // ========== Provider DOM ==========
 
@@ -470,17 +509,116 @@ document.addEventListener('DOMContentLoaded', () => {
   //  分析设置逻辑
   // ================================================================
 
+  function getSelectedJobs() {
+    const selectedIds = Array.from(targetJobList.querySelectorAll('input[name="targetJob"]:checked'))
+      .map(cb => cb.value);
+
+    const allJobs = [];
+    companies.forEach(company => {
+      if (company.jobs) {
+        company.jobs.forEach(job => {
+          if (selectedIds.includes(job.id)) {
+            allJobs.push(job);
+          }
+        });
+      }
+    });
+    return allJobs;
+  }
+
+  /**
+   * 格式化岗位数据用于 prompt 预览
+   */
+  function formatJobsForPreview(jobs) {
+    if (!jobs || jobs.length === 0) return '（暂无岗位数据）';
+
+    return jobs.map((job, index) => {
+      let text = `### 岗位 ${index + 1}: ${job.title}`;
+      if (job.salary) text += `\n- 薪资: ${job.salary}`;
+      if (job.tags && job.tags.length > 0) {
+        text += `\n- 标签: ${job.tags.join(', ')}`;
+      }
+      if (job.description) {
+        text += `\n\n**岗位描述:**\n${job.description}`;
+      }
+      return text;
+    }).join('\n\n---\n\n');
+  }
+
   function generatePrompt() {
-    const jobType = jobTypeSelect.value;
+    const userBackground = userBackgroundInput.value.trim();
     const customRequirements = customRequirementsInput.value.trim();
     const focusCheckboxes = document.querySelectorAll('input[name="focus"]:checked');
     const focusPoints = Array.from(focusCheckboxes).map(cb => cb.value);
 
-    let prompt = JOB_TYPE_PROMPTS[jobType] || JOB_TYPE_PROMPTS.other;
+    // 根据选中的岗位推断类型
+    const selectedJobs = getSelectedJobs();
+    const jobType = inferJobType(selectedJobs);
 
+    // 角色设定
+    const rolePrompt = getRolePrompt(jobType);
+
+    // 获取岗位定制的模块
     const overrides = FOCUS_MODULE_OVERRIDES[jobType] || {};
 
-    prompt += '\n\n请按以下结构输出分析报告：';
+    // 获取选中岗位的公司及所有岗位
+    let companyName = '';
+    let companyProfile = null;
+    let allCompanyJobs = [];
+    if (selectedJobs.length > 0) {
+      const company = companies.find(c => c.jobs?.some(j => selectedJobs.some(sj => sj.id === j.id)));
+      if (company) {
+        companyName = company.name;
+        companyProfile = company.companyProfile || null;
+        allCompanyJobs = company.jobs || [];
+      }
+    }
+
+    // 格式化目标岗位
+    const targetJobText = formatJobsForPreview(selectedJobs);
+
+    // 格式化其他岗位（排除目标岗位，用于勾勒公司全貌）
+    const otherJobs = allCompanyJobs.filter(j => !selectedJobs.some(sj => sj.id === j.id));
+    const otherJobsText = formatJobsForPreview(otherJobs);
+
+    let prompt = rolePrompt;
+
+    // 我的背景
+    if (userBackground) {
+      prompt += `\n\n## 我的背景\n${userBackground}`;
+    } else {
+      prompt += '\n\n## 我的背景\n（在这里填写你的简历、工作经历、技术栈等信息）';
+    }
+
+    // 公司信息
+    if (companyName) {
+      prompt += `\n\n## 我要面试的公司\n公司名称：${companyName}`;
+      if (companyProfile) {
+        const parts = [];
+        if (companyProfile.companyIntro) parts.push(`公司简介：${companyProfile.companyIntro}`);
+        if (companyProfile.culture) parts.push(`企业文化：${companyProfile.culture}`);
+        if (companyProfile.products?.length) parts.push(`产品介绍：${companyProfile.products.join('、')}`);
+        if (companyProfile.workTime) parts.push(`工作时间：${companyProfile.workTime}`);
+        if (companyProfile.benefits?.length) parts.push(`福利待遇：${companyProfile.benefits.join('、')}`);
+        if (parts.length > 0) prompt += `\n${parts.join('\n')}`;
+      }
+    } else {
+      prompt += '\n\n## 我要面试的公司\n（选择目标岗位后自动填充）';
+    }
+
+    // 目标岗位（用户要投递/面试的）
+    if (selectedJobs.length > 0) {
+      prompt += `\n\n## 我要投递的岗位\n${targetJobText}`;
+    } else {
+      prompt += '\n\n## 我要投递的岗位\n（请先选择一个目标岗位）';
+    }
+
+    // 其他岗位（用于勾勒公司全貌）
+    if (otherJobs.length > 0) {
+      prompt += `\n\n## 该公司其他在招岗位（供参考，帮助了解公司全貌）\n${otherJobsText}`;
+    }
+
+    prompt += '\n\n## 请帮我';
     focusPoints.forEach(point => {
       const module = overrides[point] || FOCUS_MODULES[point];
       if (module) {
@@ -489,10 +627,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (customRequirements) {
-      prompt += `\n\n## 用户额外需求\n${customRequirements}`;
+      prompt += `\n\n## 其他需求\n${customRequirements}`;
     }
 
-    prompt += '\n\n请用Markdown格式输出，层次清晰，重点突出。';
+    prompt += '\n\n请重点围绕"我需要准备什么"来回答，而不是泛泛分析公司。';
 
     return prompt;
   }
@@ -503,10 +641,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadPromptSettings() {
     const settings = await chrome.storage.sync.get([
-      'jobType', 'focusPoints', 'customRequirements'
+      'focusPoints', 'customRequirements', 'selectedJobId', 'userBackground'
     ]);
 
-    if (settings.jobType) jobTypeSelect.value = settings.jobType;
+    if (settings.userBackground) userBackgroundInput.value = settings.userBackground;
     if (settings.customRequirements) customRequirementsInput.value = settings.customRequirements;
 
     if (settings.focusPoints) {
@@ -515,7 +653,59 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
+    await loadTargetJobs(settings.selectedJobId);
     updatePromptPreview();
+  }
+
+  async function loadTargetJobs(selectedId) {
+    const { companies = [] } = await chrome.storage.local.get('companies');
+
+    // 收集所有岗位
+    const allJobs = [];
+    companies.forEach(company => {
+      if (company.jobs) {
+        company.jobs.forEach(job => {
+          allJobs.push({
+            id: job.id,
+            title: job.title,
+            salary: job.salary,
+            companyName: company.name
+          });
+        });
+      }
+    });
+
+    if (allJobs.length === 0) {
+      targetJobList.innerHTML = '<p class="hint">暂无已采集的岗位数据</p>';
+      return;
+    }
+
+    // 按公司分组
+    const grouped = {};
+    allJobs.forEach(job => {
+      if (!grouped[job.companyName]) {
+        grouped[job.companyName] = [];
+      }
+      grouped[job.companyName].push(job);
+    });
+
+    let html = '';
+    for (const [company, jobs] of Object.entries(grouped)) {
+      html += `<div class="target-job-group">`;
+      html += `<div class="target-job-company">${company}</div>`;
+      jobs.forEach(job => {
+        const checked = selectedId === job.id ? 'checked' : '';
+        html += `
+          <label class="radio target-job-item">
+            <input type="radio" name="targetJob" value="${job.id}" ${checked}>
+            <span class="target-job-title">${job.title}</span>
+            <span class="target-job-salary">${job.salary}</span>
+          </label>`;
+      });
+      html += `</div>`;
+    }
+
+    targetJobList.innerHTML = html;
   }
 
   promptForm.addEventListener('submit', async (e) => {
@@ -524,21 +714,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const focusCheckboxes = document.querySelectorAll('input[name="focus"]:checked');
     const focusPoints = Array.from(focusCheckboxes).map(cb => cb.value);
 
+    // 收集选中的岗位 ID
+    const selectedJob = targetJobList.querySelector('input[name="targetJob"]:checked');
+    const selectedJobId = selectedJob ? selectedJob.value : null;
+
     await chrome.storage.sync.set({
-      jobType: jobTypeSelect.value,
       focusPoints,
       customRequirements: customRequirementsInput.value.trim(),
+      userBackground: userBackgroundInput.value.trim(),
+      selectedJobId,
       analysisPrompt: promptContent.value
     });
 
     showMessage('分析设置已保存');
   });
-
-  jobTypeSelect.addEventListener('change', updatePromptPreview);
   document.querySelectorAll('input[name="focus"]').forEach(cb => {
     cb.addEventListener('change', updatePromptPreview);
   });
   customRequirementsInput.addEventListener('input', updatePromptPreview);
+  userBackgroundInput.addEventListener('input', updatePromptPreview);
+  targetJobList.addEventListener('change', (e) => {
+    if (e.target.name === 'targetJob') {
+      updatePromptPreview();
+    }
+  });
 
   // ================================================================
   //  公司数据逻辑
@@ -550,6 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activeCompanyId = data.activeCompanyId || null;
 
     renderCompanyList();
+    await refreshTargetJobs();
 
     if (companies.length > 0) {
       const target = companies.find(c => c.id === activeCompanyId) || companies[0];
@@ -557,6 +757,11 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       showCompanyEmpty();
     }
+  }
+
+  async function refreshTargetJobs() {
+    const settings = await chrome.storage.sync.get('selectedJobId');
+    await loadTargetJobs(settings.selectedJobId);
   }
 
   function renderCompanyList() {

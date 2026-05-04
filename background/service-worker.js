@@ -157,15 +157,32 @@ async function startAnalysis(request, sendResponse) {
     return;
   }
 
-  notifyPopup({ type: 'ANALYSIS_START', jobCount: company.jobs.length });
+  // 根据用户选择的目标岗位筛选
+  const { selectedJobId } = await chrome.storage.sync.get('selectedJobId');
+
+  if (!selectedJobId) {
+    sendResponse({ success: false, error: '请先选择一个目标岗位' });
+    return;
+  }
+
+  const targetJob = company.jobs.find(j => j.id === selectedJobId);
+  if (!targetJob) {
+    sendResponse({ success: false, error: '选中的岗位不存在，请重新选择' });
+    return;
+  }
+
+  // 其他岗位用于勾勒公司全貌
+  const otherJobs = company.jobs.filter(j => j.id !== selectedJobId);
+
+  notifyPopup({ type: 'ANALYSIS_START', jobCount: 1 });
 
   try {
-    const analysis = await analyzeWithAI(config, company.jobs, company.name, company.companyProfile);
+    const analysis = await analyzeWithAI(config, targetJob, otherJobs, company.name, company.companyProfile);
 
     if (!company.analyses) company.analyses = [];
     company.analyses.push({
       id: Date.now(),
-      jobCount: company.jobs.length,
+      jobCount: 1,
       analysis: analysis,
       createdAt: Date.now()
     });

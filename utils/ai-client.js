@@ -151,8 +151,13 @@ async function getAnalysisPrompt() {
 
 /**
  * 调用AI分析
+ * @param {Object} config - API 配置
+ * @param {Object} targetJob - 用户要投递的目标岗位
+ * @param {Array} otherJobs - 该公司其他岗位（用于勾勒公司全貌）
+ * @param {string} companyName - 公司名称
+ * @param {Object} companyProfile - 公司简介信息
  */
-async function analyzeWithAI(config, jobs, companyName, companyProfile) {
+async function analyzeWithAI(config, targetJob, otherJobs, companyName, companyProfile) {
   const { apiEndpoint, apiKey, model } = config;
 
   if (!apiEndpoint) {
@@ -163,13 +168,20 @@ async function analyzeWithAI(config, jobs, companyName, companyProfile) {
     throw new Error('请先在设置中配置API Key');
   }
 
-  if (!jobs || jobs.length === 0) {
-    throw new Error('没有可分析的岗位数据');
+  if (!targetJob) {
+    throw new Error('没有可分析的目标岗位');
   }
 
   // 从设置中获取用户配置的 prompt
   const analysisPrompt = await getAnalysisPrompt();
-  const jobText = formatJobsForAnalysis(jobs);
+
+  // 格式化目标岗位
+  const targetJobText = formatJobsForAnalysis([targetJob]);
+
+  // 格式化其他岗位
+  const otherJobsText = otherJobs && otherJobs.length > 0
+    ? formatJobsForAnalysis(otherJobs)
+    : '';
 
   // 组装公司背景信息
   let companyProfileText = '';
@@ -182,33 +194,38 @@ async function analyzeWithAI(config, jobs, companyName, companyProfile) {
     if (companyProfile.benefits?.length) parts.push(`福利待遇：${companyProfile.benefits.join('、')}`);
     if (companyProfile.talentDev?.length) parts.push(`人才发展：${companyProfile.talentDev.join('、')}`);
     if (parts.length > 0) {
-      companyProfileText = `\n## 公司背景信息\n${parts.join('\n')}\n`;
+      companyProfileText = parts.join('\n');
     }
   }
 
-  const userMessage = `公司名称：${companyName}
-${companyProfileText}
-以下是该公司的所有岗位JD：
-
-${analysisPrompt}
-
-${jobText}`;
+  // 动态替换 prompt 中的占位符
+  let finalPrompt = analysisPrompt;
+  finalPrompt = finalPrompt.replace('公司名称：（选择目标岗位后自动填充）', `公司名称：${companyName}`);
+  finalPrompt = finalPrompt.replace('（公司背景信息会在这里自动填充）', companyProfileText || '（暂无公司背景信息）');
+  finalPrompt = finalPrompt.replace('（请先选择一个目标岗位）', targetJobText);
+  // 替换其他岗位占位符（如果有的话）
+  if (otherJobsText) {
+    finalPrompt = finalPrompt.replace(
+      /## 该公司其他在招岗位.*$/m,
+      `## 该公司其他在招岗位（供参考，帮助了解公司全貌）\n${otherJobsText}`
+    );
+  }
 
   console.log('[JD采集助手] Prompt 组装完成:');
   console.log('- 公司:', companyName);
-  console.log('- 岗位数:', jobs.length);
-  console.log('- Prompt 长度:', analysisPrompt.length, '字符');
-  console.log('- 总消息长度:', userMessage.length, '字符');
-  console.log('[JD采集助手] 完整 Prompt:', userMessage);
+  console.log('- 目标岗位:', targetJob.title);
+  console.log('- 其他岗位数:', otherJobs?.length || 0);
+  console.log('- Prompt 长度:', finalPrompt.length, '字符');
+  console.log('[JD采集助手] 完整 Prompt:', finalPrompt);
 
   // 自动检测API格式
   const apiFormat = detectApiFormat(apiEndpoint);
   console.log('[JD采集助手] API格式:', apiFormat);
 
   if (apiFormat === 'anthropic') {
-    return await callAnthropicApi(apiEndpoint, apiKey, model, userMessage);
+    return await callAnthropicApi(apiEndpoint, apiKey, model, finalPrompt);
   } else {
-    return await callOpenAiApi(apiEndpoint, apiKey, model, userMessage);
+    return await callOpenAiApi(apiEndpoint, apiKey, model, finalPrompt);
   }
 }
 
