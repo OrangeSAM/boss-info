@@ -575,6 +575,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     prompt += '\n\n## 我要面试的公司\n公司名称：（选择目标岗位后自动填充）\n（公司背景信息会在这里自动填充）';
     prompt += '\n\n## 我要投递的岗位\n（请先选择一个目标岗位）';
+    prompt += '\n\n## 该公司其他在招岗位（供参考，帮助了解公司全貌）\n（其他岗位信息会在这里自动填充）';
 
     prompt += '\n\n## 请帮我';
     focusPoints.forEach(point => {

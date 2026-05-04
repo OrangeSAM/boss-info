@@ -82,7 +82,7 @@ async function callAnthropicApi(apiEndpoint, apiKey, model, userMessage) {
     },
     body: JSON.stringify({
       model: model || 'mimo-v2.5',
-      max_tokens: 4096,
+      max_tokens: 131072,
       system: '你是一位资深技术面试官和招聘分析师。',
       messages: [
         { role: 'user', content: userMessage }
@@ -122,7 +122,7 @@ async function callOpenAiApi(apiEndpoint, apiKey, model, userMessage) {
         { role: 'user', content: userMessage }
       ],
       temperature: 0.3,
-      max_tokens: 4096
+      max_tokens: 131072
     })
   });
 
@@ -203,13 +203,7 @@ async function analyzeWithAI(config, targetJob, otherJobs, companyName, companyP
   finalPrompt = finalPrompt.replace('公司名称：（选择目标岗位后自动填充）', `公司名称：${companyName}`);
   finalPrompt = finalPrompt.replace('（公司背景信息会在这里自动填充）', companyProfileText || '（暂无公司背景信息）');
   finalPrompt = finalPrompt.replace('（请先选择一个目标岗位）', targetJobText);
-  // 替换其他岗位占位符（如果有的话）
-  if (otherJobsText) {
-    finalPrompt = finalPrompt.replace(
-      /## 该公司其他在招岗位.*$/m,
-      `## 该公司其他在招岗位（供参考，帮助了解公司全貌）\n${otherJobsText}`
-    );
-  }
+  finalPrompt = finalPrompt.replace('（其他岗位信息会在这里自动填充）', otherJobsText || '（暂无其他岗位信息）');
 
   console.log('[JD采集助手] Prompt 组装完成:');
   console.log('- 公司:', companyName);
