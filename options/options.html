@@ -26,77 +26,14 @@
 
     <!-- Tab 导航 -->
     <nav class="tabs">
-      <button type="button" class="tab-btn active" data-tab="data">已采集数据</button>
-      <button type="button" class="tab-btn" data-tab="report">分析报告</button>
-      <button type="button" class="tab-btn" data-tab="api">API 配置</button>
+      <button type="button" class="tab-btn active" data-tab="api">API 配置</button>
       <button type="button" class="tab-btn" data-tab="prompt">分析设置</button>
+      <button type="button" class="tab-btn" data-tab="data">已采集数据</button>
+      <button type="button" class="tab-btn" data-tab="report">分析报告</button>
     </nav>
 
-    <!-- Tab 0: 已采集数据 -->
-    <div class="tab-panel active" data-tab="data">
-      <div class="split-layout">
-        <!-- 左侧：公司列表 -->
-        <div class="split-list">
-          <div class="split-list-header">
-            <h3>已采集公司</h3>
-          </div>
-          <div id="companyList" class="split-list-items">
-            <div class="empty-state" id="companyListEmpty">
-              <p>暂无数据</p>
-              <p class="hint">请在BOSS直聘采集</p>
-            </div>
-          </div>
-        </div>
-        <!-- 右侧：公司详情 -->
-        <div class="split-detail">
-          <div id="companyEmpty" class="empty-state">
-            <p>选择一家公司查看详情</p>
-          </div>
-          <div id="companyDetail" class="hidden">
-            <div class="data-header">
-              <div class="data-info">
-                <span id="dataCompany" class="data-company"></span>
-                <span id="dataCount" class="data-count"></span>
-              </div>
-              <button type="button" id="deleteCompanyBtn" class="btn btn-danger btn-small">删除公司</button>
-            </div>
-
-            <div id="jobList" class="job-list">
-              <div id="jobListItems" class="job-list-items"></div>
-            </div>
-
-            <div class="data-actions">
-              <button type="button" id="analyzeBtn" class="btn btn-primary" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                </svg>
-                AI 分析
-              </button>
-              <button type="button" id="exportReportBtn" class="btn btn-outline" disabled>导出报告</button>
-              <button type="button" id="exportRawBtn" class="btn btn-outline" disabled>导出原始数据</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab 1: 分析报告 -->
-    <div class="tab-panel" data-tab="report">
-      <div id="reportEmpty" class="empty-state">
-        <p>暂无分析报告</p>
-        <p class="hint">请先在"已采集数据"中选择公司并进行 AI 分析</p>
-      </div>
-      <div id="reportContent" class="hidden">
-        <div class="report-header">
-          <span id="reportCompany" class="report-company"></span>
-          <button type="button" id="exportReportBtn2" class="btn btn-outline btn-small">导出报告</button>
-        </div>
-        <div id="reportBody" class="report-body analysis-content"></div>
-      </div>
-    </div>
-
-    <!-- Tab 2: API 配置 -->
-    <div class="tab-panel" data-tab="api">
+    <!-- Tab 0: API 配置 -->
+    <div class="tab-panel active" data-tab="api">
       <div class="split-layout">
         <!-- 左侧：Provider 列表 -->
         <div class="split-list">
@@ -142,7 +79,7 @@
       </div>
     </div>
 
-    <!-- Tab 3: 分析设置 -->
+    <!-- Tab 1: 分析设置 -->
     <div class="tab-panel" data-tab="prompt">
       <form id="promptForm" class="form">
         <div class="prompt-editor">
@@ -214,11 +151,74 @@
           <div class="prompt-preview-panel">
             <h2 class="section-title">Prompt 预览</h2>
             <div class="prompt-preview">
-              <pre id="promptContent"></pre>
+              <textarea id="promptContent" rows="10" spellcheck="false"></textarea>
             </div>
           </div>
         </div>
       </form>
+    </div>
+
+    <!-- Tab 2: 已采集数据 -->
+    <div class="tab-panel" data-tab="data">
+      <div class="split-layout">
+        <!-- 左侧：公司列表 -->
+        <div class="split-list">
+          <div class="split-list-header">
+            <h3>已采集公司</h3>
+          </div>
+          <div id="companyList" class="split-list-items">
+            <div class="empty-state" id="companyListEmpty">
+              <p>暂无数据</p>
+              <p class="hint">请在BOSS直聘采集</p>
+            </div>
+          </div>
+        </div>
+        <!-- 右侧：公司详情 -->
+        <div class="split-detail">
+          <div id="companyEmpty" class="empty-state">
+            <p>选择一家公司查看详情</p>
+          </div>
+          <div id="companyDetail" class="hidden">
+            <div class="data-header">
+              <div class="data-info">
+                <span id="dataCompany" class="data-company"></span>
+                <span id="dataCount" class="data-count"></span>
+              </div>
+              <button type="button" id="deleteCompanyBtn" class="btn btn-danger btn-small">删除公司</button>
+            </div>
+
+            <div id="jobList" class="job-list">
+              <div id="jobListItems" class="job-list-items"></div>
+            </div>
+
+            <div class="data-actions">
+              <button type="button" id="analyzeBtn" class="btn btn-primary" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+                AI 分析
+              </button>
+              <button type="button" id="exportReportBtn" class="btn btn-outline" disabled>导出报告</button>
+              <button type="button" id="exportRawBtn" class="btn btn-outline" disabled>导出原始数据</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: 分析报告 -->
+    <div class="tab-panel" data-tab="report">
+      <div id="reportEmpty" class="empty-state">
+        <p>暂无分析报告</p>
+        <p class="hint">请先在"已采集数据"中选择公司并进行 AI 分析</p>
+      </div>
+      <div id="reportContent" class="hidden">
+        <div class="report-header">
+          <span id="reportCompany" class="report-company"></span>
+          <button type="button" id="exportReportBtn2" class="btn btn-outline btn-small">导出报告</button>
+        </div>
+        <div id="reportBody" class="report-body analysis-content"></div>
+      </div>
     </div>
 
     <div id="message" class="message hidden"></div>

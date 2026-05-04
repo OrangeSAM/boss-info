@@ -66,6 +66,149 @@ const FOCUS_MODULES = {
 - 跳槽建议`
 };
 
+// 岗位定制的 focus 模块（仅覆盖有差异的模块，其余走 FOCUS_MODULES 默认）
+const FOCUS_MODULE_OVERRIDES = {
+  frontend: {
+    tech_stack: `
+## 前端技术栈分析
+请详细分析：
+- 主框架及版本（React/Vue/Angular）及配套生态（状态管理、路由、UI库）
+- 构建工具链（Webpack/Vite/Turbopack）及优化策略
+- 跨端方案（如 Electron/Taro/React Native）
+- 工程化能力（Monorepo、CI/CD、代码规范、测试方案）
+- 性能优化和监控体系`,
+
+    interview: `
+## 前端面试准备
+请针对前端岗位给出：
+- 必须掌握的5个核心前端知识点（如：事件循环、虚拟DOM、浏览器渲染机制、CSS布局、模块化）
+- 大概率会问的3个前端面试题（附简要答案思路）
+- 如何包装前端项目经验（性能优化、工程化、复杂交互）
+- 需要准备的手写代码题（如：Promise实现、深拷贝、虚拟列表）
+- 前端系统设计题准备（如：设计一个组件库、设计一个前端监控方案）`
+  },
+
+  backend: {
+    tech_stack: `
+## 后端技术栈分析
+请详细分析：
+- 主力语言及版本（Java/Go/Python/Node.js）及核心框架
+- 数据库选型（MySQL/PostgreSQL/MongoDB）及缓存方案（Redis）
+- 中间件使用（消息队列 Kafka/RabbitMQ、搜索引擎 ES）
+- 微服务架构（服务注册发现、网关、链路追踪）
+- 基础设施（K8s、容器化、CI/CD、云服务商）`,
+
+    interview: `
+## 后端面试准备
+请针对后端岗位给出：
+- 必须掌握的5个核心后端知识点（如：并发编程、分布式事务、数据库索引、消息队列、缓存策略）
+- 大概率会问的3个后端面试题（附简要答案思路）
+- 如何包装后端项目经验（高并发、高可用、系统设计）
+- 需要准备的系统设计题（如：设计短链服务、设计秒杀系统）
+- 数据库和 SQL 优化相关准备`
+  },
+
+  fullstack: {
+    tech_stack: `
+## 全栈技术栈分析
+请详细分析：
+- 前端技术栈（框架、构建工具、UI 库）
+- 后端技术栈（语言、框架、数据库）
+- 前后端协作方式（BFF 层、API 规范、联调方式）
+- 全栈工程师的技术广度要求和成长路径
+- DevOps 和部署相关的工具链`,
+
+    interview: `
+## 全栈面试准备
+请针对全栈岗位给出：
+- 必须掌握的5个核心知识点（兼顾前后端：如 API 设计、数据库建模、前端组件化、部署运维、性能优化）
+- 大概率会问的3个面试题（附简要答案思路）
+- 如何展示全栈能力（独立负责模块、端到端交付经验）
+- 需要准备的编码题（前后端各准备 2-3 道）
+- 全栈工程师在团队中的定位和价值展示`
+  },
+
+  mobile: {
+    tech_stack: `
+## 移动端技术栈分析
+请详细分析：
+- 原生开发（iOS Swift/ObjC、Android Kotlin/Java）
+- 跨平台方案（Flutter/React Native/Weex）及选型依据
+- 移动端架构（MVC/MVVM/MVP/Clean Architecture）
+- 性能优化工具（内存泄漏检测、启动优化、包体积优化）
+- CI/CD 和自动化发布流程`,
+
+    interview: `
+## 移动端面试准备
+请针对移动端岗位给出：
+- 必须掌握的5个核心知识点（如：内存管理、多线程、网络优化、UI 渲染机制、跨平台原理）
+- 大概率会问的3个面试题（附简要答案思路）
+- 如何包装移动端项目经验（性能优化、架构演进、用户量级）
+- 需要准备的编码题（Swift/Kotlin 手写、算法题）
+- 原生 vs 跨平台的技术决策能力展示`
+  },
+
+  ai: {
+    tech_stack: `
+## AI/算法技术栈分析
+请详细分析：
+- 机器学习框架（PyTorch/TensorFlow/JAX）及版本
+- 大模型相关（模型微调、推理部署、RAG、Agent）
+- 数据处理和特征工程工具链
+- 模型训练基础设施（GPU 集群、分布式训练、MLflow 等 MLOps）
+- 应用层技术（向量数据库、模型服务框架、A/B 测试）`,
+
+    interview: `
+## AI/算法面试准备
+请针对 AI 算法岗位给出：
+- 必须掌握的5个核心知识点（如：Transformer 原理、损失函数设计、模型评估指标、正则化方法、特征工程）
+- 大概率会问的3个算法面试题（附简要答案思路）
+- 如何包装算法项目经验（模型效果提升、业务指标、论文/专利）
+- 需要准备的手撕代码题（经典 ML 算法实现、PyTorch 训练循环）
+- Paper reading 和前沿技术追踪能力展示`
+  },
+
+  product: {
+    tech_stack: `
+## 产品岗位工具与方法论分析
+请分析：
+- 产品设计工具（Figma/Axure/墨刀）
+- 数据分析工具（SQL、数据看板、A/B 测试平台）
+- 项目管理工具（Jira/飞书/Notion）
+- 用户研究方法（用户访谈、可用性测试、数据埋点）
+- 所在行业的竞品分析工具和方法`,
+
+    interview: `
+## 产品岗位面试准备
+请针对产品经理岗位给出：
+- 必须掌握的5个核心能力点（如：需求分析、竞品调研、数据驱动决策、PRD 撰写、用户画像）
+- 大概率会问的3个面试题（附回答思路：如"如何从0到1设计一个产品"）
+- 如何包装产品项目经验（数据指标、业务增长、用户反馈）
+- 需要准备的产品设计题（现场出方案、流程图绘制）
+- 产品经理的技术理解力和协作能力展示`
+  },
+
+  test: {
+    tech_stack: `
+## 测试技术栈分析
+请详细分析：
+- 自动化测试框架（Selenium/Playwright/Cypress/Appium）
+- 性能测试工具（JMeter/Locust/k6）
+- 接口测试工具（Postman/RestAssured）
+- 测试平台和 CI/CD 集成（TestNG/Pytest、测试报告）
+- 质量保障体系（代码覆盖率、SonarQube、灰度发布）`,
+
+    interview: `
+## 测试岗位面试准备
+请针对测试岗位给出：
+- 必须掌握的5个核心知识点（如：测试用例设计方法、自动化测试策略、性能测试、接口测试、测试左移右移）
+- 大概率会问的3个面试题（附简要答案思路）
+- 如何包装测试项目经验（质量指标提升、自动化覆盖率、效率提升）
+- 需要准备的编码题（Python/Java 自动化脚本、SQL 查询）
+- 测试架构设计能力展示（测试策略、分层测试、质量体系建设）`
+  }
+};
+
 /**
  * Markdown → HTML（基于 marked 库）
  */
@@ -335,10 +478,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let prompt = JOB_TYPE_PROMPTS[jobType] || JOB_TYPE_PROMPTS.other;
 
+    const overrides = FOCUS_MODULE_OVERRIDES[jobType] || {};
+
     prompt += '\n\n请按以下结构输出分析报告：';
     focusPoints.forEach(point => {
-      if (FOCUS_MODULES[point]) {
-        prompt += FOCUS_MODULES[point];
+      const module = overrides[point] || FOCUS_MODULES[point];
+      if (module) {
+        prompt += module + '\n';
       }
     });
 
@@ -352,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updatePromptPreview() {
-    promptContent.textContent = generatePrompt();
+    promptContent.value = generatePrompt();
   }
 
   async function loadPromptSettings() {
@@ -382,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
       jobType: jobTypeSelect.value,
       focusPoints,
       customRequirements: customRequirementsInput.value.trim(),
-      analysisPrompt: generatePrompt()
+      analysisPrompt: promptContent.value
     });
 
     showMessage('分析设置已保存');
